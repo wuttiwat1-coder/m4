@@ -1,0 +1,2875 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>ระบบติดตามคะแนนการเรียน ครูนรินทร์ อนงค์ชัย ออนไลน์ (Realtime Class Scoring)</title>
+
+  <!-- Google Fonts: Prompt & Sarabun -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Prompt:wght@300;400;500;600;700&family=Sarabun:wght@400;500;600;700&display=swap" rel="stylesheet">
+
+  <!-- Tailwind CSS CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+
+  <!-- Lucide Icons -->
+  <script src="https://unpkg.com/lucide@latest"></script>
+
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          fontFamily: {
+            sans: ['Prompt', 'Sarabun', 'sans-serif'],
+            body: ['Sarabun', 'Prompt', 'sans-serif']
+          },
+          colors: {
+            brand: {
+              50: '#eff6ff',
+              100: '#dbeafe',
+              500: '#2563eb',
+              600: '#1d4ed8',
+              700: '#1e40af',
+              800: '#1e3a8a',
+              900: '#172554'
+            }
+          }
+        }
+      }
+    };
+  </script>
+
+  <style>
+    body {
+      font-family: 'Prompt', 'Sarabun', sans-serif;
+      background-color: #f1f5f9;
+    }
+
+    /* Custom Scrollbar */
+    ::-webkit-scrollbar {
+      width: 8px;
+      height: 8px;
+    }
+    ::-webkit-scrollbar-track {
+      background: #f1f5f9;
+    }
+    ::-webkit-scrollbar-thumb {
+      background: #cbd5e1;
+      border-radius: 4px;
+    }
+    ::-webkit-scrollbar-thumb:hover {
+      background: #94a3b8;
+    }
+
+    /* Sticky Table Columns for Gradebook (Compact & Responsive so Unit 1 is always visible) */
+    .sticky-col-no {
+      position: sticky;
+      left: 0;
+      width: 48px;
+      min-width: 48px;
+      max-width: 48px;
+      z-index: 20;
+    }
+    .sticky-col-name {
+      position: sticky;
+      left: 48px;
+      width: 190px;
+      min-width: 190px;
+      max-width: 190px;
+      z-index: 20;
+      box-shadow: 4px 0 6px -2px rgba(15, 23, 42, 0.12);
+    }
+    @media (max-width: 640px) {
+      .sticky-col-no {
+        width: 38px;
+        min-width: 38px;
+        max-width: 38px;
+      }
+      .sticky-col-name {
+        left: 38px;
+        width: 145px;
+        min-width: 145px;
+        max-width: 145px;
+      }
+    }
+    /* Sticky Header Row (ตรึงแถวหัวตารางเวลาเลื่อนลง) */
+    #gradebookThead th,
+    #activityModalThead th {
+      position: sticky;
+      top: 0;
+      z-index: 25;
+      box-shadow: 0 2px 4px -1px rgba(15, 23, 42, 0.15);
+    }
+    /* มุมซ้ายบนสุด (เลขที่ และ ชื่อ-นามสกุล ในหัวตาราง) ต้องอยู่ชั้นบนสุดทั้งแนวตั้งและแนวนอน */
+    #gradebookThead th.sticky-col-no,
+    #gradebookThead th.sticky-col-name,
+    #activityModalThead th.sticky-col-no,
+    #activityModalThead th.sticky-col-name {
+      z-index: 35;
+    }
+    tfoot .sticky-col-footer {
+      position: sticky;
+      left: 0;
+      z-index: 30;
+      box-shadow: 4px 0 6px -2px rgba(15, 23, 42, 0.12);
+    }
+
+    /* Number input clean style */
+    input[type="number"]::-webkit-inner-spin-button,
+    input[type="number"]::-webkit-outer-spin-button {
+      -webkit-appearance: none;
+      margin: 0;
+    }
+    input[type="number"] {
+      -moz-appearance: textfield;
+    }
+
+    @media print {
+      .no-print {
+        display: none !important;
+      }
+      body {
+        background: white !important;
+      }
+      .print-full {
+        overflow: visible !important;
+        box-shadow: none !important;
+      }
+      .sticky-col-no, .sticky-col-code, .sticky-col-name {
+        position: static !important;
+        box-shadow: none !important;
+      }
+    }
+  </style>
+</head>
+<body class="min-h-screen text-slate-800 flex flex-col">
+
+  <!-- ======================= TOP NAVBAR ======================= -->
+  <header class="bg-gradient-to-r from-brand-900 via-brand-800 to-indigo-900 text-white shadow-lg sticky top-0 z-40 no-print">
+    <div class="max-w-[1600px] mx-auto px-4 sm:px-6 py-3 flex flex-wrap items-center justify-between gap-3">
+      <!-- Brand Title -->
+      <div class="flex items-center gap-3">
+        <div class="w-11 h-11 rounded-xl bg-white/15 backdrop-blur flex items-center justify-center border border-white/25 shadow-inner">
+          <i data-lucide="graduation-cap" class="w-6 h-6 text-amber-300"></i>
+        </div>
+        <div>
+          <div class="flex items-center gap-2">
+            <h1 id="mainAppHeading" class="text-lg sm:text-xl font-bold tracking-tight">ระบบติดตามคะแนนการเรียน ครูนรินทร์ อนงค์ชัย ออนไลน์ (Realtime Class Scoring)</h1>
+            <span class="hidden sm:inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-amber-400/20 text-amber-200 border border-amber-300/30">
+              ตัดคะแนนเต็ม 100 อัตโนมัติ
+            </span>
+          </div>
+          <p class="text-xs text-blue-200">จัดการชั้นเรียน • เพิ่มหน่วยเก็บคะแนนอิสระ • แสดงผลรายบุคคลทั้งห้อง • ซิงค์ข้อมูลกับ Google Sheets</p>
+        </div>
+      </div>
+
+      <!-- Right Action Buttons -->
+      <div class="flex items-center flex-wrap gap-2">
+        <!-- Edit Login / Lock Button -->
+        <button onclick="openOwnerAuthModal()" id="ownerStatusBtn" class="inline-flex items-center gap-2 px-3.5 py-2 rounded-xl bg-amber-400 hover:bg-amber-300 text-slate-950 text-xs sm:text-sm font-bold transition shadow-sm" title="ลงชื่อแก้ไขด้วยชื่อผู้ใช้และรหัสผ่าน">
+          <i id="ownerLockIcon" data-lucide="key-round" class="w-4 h-4"></i>
+          <span id="ownerStatusText">ลงชื่อแก้ไข</span>
+        </button>
+
+        <!-- Sync Status Indicator -->
+        <div id="syncStatusBadge" class="hidden xl:flex items-center gap-2 px-3 py-1.5 rounded-lg bg-white/10 border border-white/15 text-xs">
+          <span id="syncDot" class="w-2.5 h-2.5 rounded-full bg-emerald-400"></span>
+          <span id="syncStatusText">บันทึกในเครื่องแล้ว (Local)</span>
+        </div>
+
+        <button onclick="syncWithGoogleSheets('push')" id="btnPushCloud" class="hidden inline-flex items-center gap-1.5 px-3.5 py-2 rounded-lg bg-emerald-500 hover:bg-emerald-600 text-white text-xs sm:text-sm font-semibold shadow-sm transition">
+          <i data-lucide="cloud-upload" class="w-4 h-4"></i>
+          <span>บันทึกลง Google Sheets</span>
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <!-- ======================= SUBJECT & CLASSROOM BAR ======================= -->
+  <section class="bg-white border-b border-slate-200 shadow-sm no-print">
+    <div class="max-w-[1600px] mx-auto px-4 sm:px-6 py-3 flex flex-wrap items-center justify-between gap-3">
+      <!-- Left: Subject & Room Info + Settings Button -->
+      <div class="flex flex-wrap items-center gap-2 sm:gap-3">
+        <div class="inline-flex items-center gap-2 px-3.5 py-2 rounded-xl bg-brand-50 border border-brand-200 text-brand-900">
+          <i data-lucide="book-marked" class="w-4 h-4 text-brand-600"></i>
+          <span id="subjectHeaderBadge" class="text-xs sm:text-sm font-bold">อ23102 ภาษาอังกฤษพื้นฐาน • ชั้น ม.3 ห้อง 1 (ม.3/1) • ภาคเรียนที่ 2/2569</span>
+        </div>
+
+        <button onclick="openSubjectSettingsModal()" class="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-brand-600 hover:bg-brand-700 text-white text-xs sm:text-sm font-semibold transition shadow-sm" title="ตั้งค่ารายวิชาและห้องเรียน">
+          <i data-lucide="settings" class="w-4 h-4"></i>
+          <span>ตั้งค่ารายวิชา</span>
+        </button>
+      </div>
+
+      <!-- Right: Scoring Mode Quick Switcher -->
+      <div class="flex flex-wrap items-center gap-2 bg-slate-100 p-1.5 rounded-xl border border-slate-200">
+        <span class="text-xs font-medium text-slate-600 px-2 flex items-center gap-1">
+          <i data-lucide="calculator" class="w-3.5 h-3.5 text-brand-600"></i>
+          วิธีตัดคะแนนเต็ม 100:
+        </span>
+        <select id="scoringModeSelect" onchange="changeScoringMode(this.value)" class="px-2.5 py-1 rounded-lg bg-white border border-slate-300 text-xs font-semibold text-brand-700 focus:outline-none">
+          <option value="scale100">เทียบบัญญัติไตรยางศ์รวมทุกหน่วย เป็นเต็ม 100 อัตโนมัติ</option>
+          <option value="weighted">ใช้ค่าน้ำหนักคะแนน (Weight) ของแต่ละหน่วย รวมเต็ม 100</option>
+          <option value="direct">รวมคะแนนดิบทุกหน่วยตรงๆ (เต็ม 100)</option>
+        </select>
+      </div>
+    </div>
+  </section>
+
+  <!-- ======================= MAIN CONTENT AREA ======================= -->
+  <main class="flex-1 max-w-[1600px] w-full mx-auto px-4 sm:px-6 py-5 space-y-5">
+
+    <!-- Summary Cards Row -->
+    <div class="grid grid-cols-2 md:grid-cols-5 gap-3 sm:gap-4 no-print">
+      <!-- Card 1: Current Class Info -->
+      <div class="bg-white rounded-2xl p-4 border border-slate-200 shadow-sm flex items-center gap-3.5">
+        <div class="w-11 h-11 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center shrink-0">
+          <i data-lucide="book-open" class="w-6 h-6"></i>
+        </div>
+        <div class="min-w-0">
+          <p class="text-xs text-slate-500">ห้องเรียนที่เปิดอยู่</p>
+          <p id="statClassName" class="text-sm sm:text-base font-bold text-slate-800 truncate">-</p>
+          <p id="statSubjectName" class="text-xs text-brand-600 truncate">-</p>
+        </div>
+      </div>
+
+      <!-- Card 2: Total Students -->
+      <div class="bg-white rounded-2xl p-4 border border-slate-200 shadow-sm flex items-center gap-3.5">
+        <div class="w-11 h-11 rounded-xl bg-indigo-50 text-indigo-600 flex items-center justify-center shrink-0">
+          <i data-lucide="users" class="w-6 h-6"></i>
+        </div>
+        <div>
+          <p class="text-xs text-slate-500">จำนวนนักเรียนในห้อง</p>
+          <p class="text-xl font-bold text-slate-800"><span id="statStudentCount">0</span> <span class="text-xs font-normal text-slate-500">คน</span></p>
+          <p class="text-xs text-slate-400">แสดงรายชื่อเป็นแถวครบทุกคน</p>
+        </div>
+      </div>
+
+      <!-- Card 3: Total Units & Max Score -->
+      <div class="bg-white rounded-2xl p-4 border border-slate-200 shadow-sm flex items-center gap-3.5">
+        <div class="w-11 h-11 rounded-xl bg-amber-50 text-amber-600 flex items-center justify-center shrink-0">
+          <i data-lucide="layers" class="w-6 h-6"></i>
+        </div>
+        <div>
+          <p class="text-xs text-slate-500">จำนวนหน่วยเก็บคะแนน</p>
+          <p class="text-xl font-bold text-slate-800"><span id="statUnitCount">0</span> <span class="text-xs font-normal text-slate-500">หน่วย</span></p>
+          <p id="statMaxScoreSub" class="text-xs text-amber-700 font-medium">คะแนนดิบรวม 0 → ตัดเต็ม 100</p>
+        </div>
+      </div>
+
+      <!-- Card 4: Average Score / 100 -->
+      <div class="bg-white rounded-2xl p-4 border border-slate-200 shadow-sm flex items-center gap-3.5">
+        <div class="w-11 h-11 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center shrink-0">
+          <i data-lucide="award" class="w-6 h-6"></i>
+        </div>
+        <div>
+          <p class="text-xs text-slate-500">คะแนนเฉลี่ยของห้อง (เต็ม 100)</p>
+          <p class="text-xl font-bold text-emerald-700"><span id="statAvg100">0.00</span> <span class="text-xs font-normal text-slate-500">/ 100</span></p>
+          <p id="statHighLow" class="text-xs text-slate-500">สูงสุด: 0 | ต่ำสุด: 0</p>
+        </div>
+      </div>
+
+      <!-- Card 5: Pass Rate -->
+      <div class="col-span-2 md:col-span-1 bg-white rounded-2xl p-4 border border-slate-200 shadow-sm flex items-center gap-3.5">
+        <div class="w-11 h-11 rounded-xl bg-purple-50 text-purple-600 flex items-center justify-center shrink-0">
+          <i data-lucide="bar-chart-3" class="w-6 h-6"></i>
+        </div>
+        <div>
+          <p class="text-xs text-slate-500">ผ่านเกณฑ์ (≥ 50 คะแนน)</p>
+          <p class="text-xl font-bold text-purple-700"><span id="statPassCount">0</span> <span class="text-xs font-normal text-slate-500">คน</span></p>
+          <p id="statGrade4Count" class="text-xs text-emerald-600 font-medium">ได้เกรด 4 จำนวน 0 คน</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- Navigation Tabs & Quick Action Toolbar -->
+    <div class="bg-white rounded-2xl border border-slate-200 shadow-sm p-2 flex flex-wrap items-center justify-between gap-2 no-print">
+      <!-- Tabs -->
+      <div class="flex flex-wrap items-center gap-1">
+        <button onclick="switchTab('gradebook')" id="tabBtn-gradebook" class="tab-btn inline-flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-semibold transition bg-brand-600 text-white shadow-sm">
+          <i data-lucide="table-2" class="w-4 h-4"></i>
+          <span>1. ตารางรวมทุกหน่วย & ตัดคะแนนเต็ม 100</span>
+        </button>
+
+        <button onclick="switchTab('units')" id="tabBtn-units" class="tab-btn inline-flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-semibold transition text-slate-600 hover:bg-slate-100">
+          <i data-lucide="Sliders" class="w-4 h-4"></i>
+          <span>2. จัดการหน่วยเก็บคะแนน & กำหนดคะแนน</span>
+        </button>
+
+        <button onclick="switchTab('students')" id="tabBtn-students" class="tab-btn inline-flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-semibold transition text-slate-600 hover:bg-slate-100">
+          <i data-lucide="user-plus" class="w-4 h-4"></i>
+          <span>3. จัดการ & นำเข้ารายชื่อนักเรียน</span>
+        </button>
+      </div>
+
+      <!-- Quick Buttons -->
+      <div class="flex flex-wrap items-center gap-2">
+        <button onclick="openUnitModal()" class="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl bg-amber-500 hover:bg-amber-600 text-white text-xs font-semibold transition shadow-sm">
+          <i data-lucide="plus" class="w-4 h-4"></i>
+          <span>เพิ่มหน่วยเก็บคะแนน</span>
+        </button>
+
+        <button onclick="openBulkImportModal()" class="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-semibold transition shadow-sm">
+          <i data-lucide="file-spreadsheet" class="w-4 h-4"></i>
+          <span>นำเข้ารายชื่อนักเรียน</span>
+        </button>
+
+        <button onclick="exportCurrentClassCSV()" class="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl border border-slate-300 hover:bg-slate-100 text-slate-700 text-xs font-semibold transition">
+          <i data-lucide="download" class="w-4 h-4"></i>
+          <span>ส่งออกไฟล์ CSV (Excel)</span>
+        </button>
+
+        <button onclick="window.print()" class="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl border border-slate-300 hover:bg-slate-100 text-slate-700 text-xs font-semibold transition">
+          <i data-lucide="printer" class="w-4 h-4"></i>
+          <span>พิมพ์ใบคะแนน</span>
+        </button>
+      </div>
+    </div>
+
+    <!-- ======================================================================= -->
+    <!-- TAB 1: MASTER GRADEBOOK TABLE (ตารางรวมทุกหน่วยและตัดคะแนนเต็ม 100)     -->
+    <!-- ======================================================================= -->
+    <div id="tabContent-gradebook" class="space-y-4">
+      <!-- Print Header (Visible only on print) -->
+      <div class="hidden print:block border-b-2 border-slate-800 pb-3 mb-4">
+        <h2 id="printHeaderTitle" class="text-xl font-bold text-center">รายงานสรุปผลการเรียน (ปพ.5)</h2>
+        <p id="printHeaderSubtitle" class="text-sm text-center text-slate-600 mt-1"></p>
+      </div>
+
+      <!-- Search & Filter Bar -->
+      <div class="bg-white rounded-2xl border border-slate-200 p-3.5 shadow-sm flex flex-wrap items-center justify-between gap-3 no-print">
+        <div class="flex flex-wrap items-center gap-3 flex-1 min-w-[260px]">
+          <div class="relative flex-1 max-w-md">
+            <i data-lucide="search" class="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2"></i>
+            <input type="text" id="searchStudentInput" oninput="renderGradebookTable()" placeholder="ค้นหาเลขที่ หรือ ชื่อ-นามสกุล..." class="w-full pl-9 pr-4 py-2 rounded-xl border border-slate-300 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500" />
+          </div>
+
+          <select id="filterGradeSelect" onchange="renderGradebookTable()" class="px-3 py-2 rounded-xl border border-slate-300 text-xs sm:text-sm bg-slate-50 font-medium">
+            <option value="all">แสดงทุกผลการเรียน (ทั้งหมด)</option>
+            <option value="pass">ผ่านเกณฑ์ (≥ 50 คะแนน)</option>
+            <option value="fail">ต่ำกว่าเกณฑ์ (< 50 คะแนน / ติด 0)</option>
+            <option value="grade4">ได้เกรด 4 (80-100 คะแนน)</option>
+          </select>
+        </div>
+
+        <!-- Formula Explanation Pill -->
+        <div id="formulaExplanationBanner" class="text-xs px-3.5 py-2 rounded-xl bg-blue-50 text-brand-800 border border-blue-200 flex items-center gap-2 font-medium">
+          <i data-lucide="info" class="w-4 h-4 text-brand-600 shrink-0"></i>
+          <span id="formulaText">กำลังใช้โหมดเทียบบัญญัติไตรยางศ์คะแนนรวมเป็นเต็ม 100 อัตโนมัติ</span>
+        </div>
+      </div>
+
+      <!-- Master Gradebook Table Card -->
+      <div class="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden print-full">
+        <div class="overflow-auto max-h-[72vh] print-full">
+          <table class="w-full border-collapse text-sm">
+            <thead id="gradebookThead" class="bg-slate-800 text-white text-xs uppercase select-none">
+              <!-- Dynamically rendered by JS -->
+            </thead>
+            <tbody id="gradebookTbody" class="divide-y divide-slate-200 font-body">
+              <!-- Dynamically rendered by JS -->
+            </tbody>
+            <tfoot id="gradebookTfoot" class="bg-slate-100 font-semibold text-slate-700 border-t-2 border-slate-300 text-xs sm:text-sm">
+              <!-- Dynamically rendered by JS -->
+            </tfoot>
+          </table>
+        </div>
+      </div>
+
+      <!-- Bottom Helper Note -->
+      <div class="flex flex-wrap items-center justify-between gap-2 text-xs text-slate-500 px-1 no-print">
+        <p class="flex items-center gap-1.5">
+          <i data-lucide="keyboard" class="w-4 h-4 text-brand-600"></i>
+          <span><strong>เคล็ดลับการกรอกคะแนนไว:</strong> คลิกในช่องคะแนนแล้วพิมพ์ตัวเลข กดปุ่ม <kbd class="px-1.5 py-0.5 bg-white border rounded shadow-sm font-sans">Enter</kbd> หรือ <kbd class="px-1.5 py-0.5 bg-white border rounded shadow-sm font-sans">↓</kbd> เพื่อเลื่อนลงไปกรอกนักเรียนคนถัดไปได้ทันที</span>
+        </p>
+        <button onclick="exportSummaryToGoogleSheetTab()" class="text-brand-600 hover:text-brand-800 font-semibold inline-flex items-center gap-1">
+          <i data-lucide="external-link" class="w-3.5 h-3.5"></i>
+          <span>ส่งออกตารางห้องนี้ไปสร้างแผ่นงานสรุป (Sheet Tab) บน Google Sheets</span>
+        </button>
+      </div>
+    </div>
+
+    <!-- ======================================================================= -->
+    <!-- TAB 2: UNIT MANAGER (จัดการหน่วยเก็บคะแนน และสัดส่วนเต็ม 100)            -->
+    <!-- ======================================================================= -->
+    <div id="tabContent-units" class="hidden space-y-4">
+      <div class="bg-white rounded-2xl border border-slate-200 p-5 shadow-sm space-y-4">
+        <div class="flex flex-wrap items-center justify-between gap-3 border-b border-slate-100 pb-4">
+          <div>
+            <h2 class="text-base sm:text-lg font-bold text-slate-800 flex items-center gap-2">
+              <i data-lucide="layers" class="w-5 h-5 text-amber-500"></i>
+              <span>โครงสร้างหน่วยเก็บคะแนน และการตัดคะแนนเต็ม 100</span>
+            </h2>
+            <p class="text-xs sm:text-sm text-slate-500 mt-0.5">
+              คุณสามารถเพิ่มหน่วยการเรียนรู้ ชิ้นงาน สอบย่อย สอบกลางภาค หรือสอบปลายภาคได้ไม่จำกัด ระบบจะรวมและตัดเป็นคะแนนเต็ม 100 ให้โดยอัตโนมัติ
+            </p>
+          </div>
+          <div class="flex items-center gap-2">
+            <button onclick="autoDistributeWeights()" class="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl border border-brand-200 bg-brand-50 hover:bg-brand-100 text-brand-700 text-xs sm:text-sm font-semibold transition">
+              <i data-lucide="wand-2" class="w-4 h-4"></i>
+              <span>ปรับน้ำหนักทุกหน่วยให้รวมได้ 100 พอดี</span>
+            </button>
+            <button onclick="openUnitModal()" class="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-amber-500 hover:bg-amber-600 text-white text-xs sm:text-sm font-semibold shadow-sm transition">
+              <i data-lucide="plus-circle" class="w-4 h-4"></i>
+              <span>+ เพิ่มหน่วยเก็บคะแนนใหม่</span>
+            </button>
+          </div>
+        </div>
+
+        <!-- Score Weight Progress Bar (Out of 100) -->
+        <div class="bg-slate-50 rounded-xl p-4 border border-slate-200 space-y-2">
+          <div class="flex flex-wrap items-center justify-between text-xs sm:text-sm">
+            <span class="font-semibold text-slate-700">สัดส่วนคะแนนของแต่ละหน่วยเมื่อเทียบเป็น 100 คะแนนเต็ม:</span>
+            <span id="unitTotalSummaryLabel" class="font-bold text-brand-700">คะแนนดิบรวม 100 คะแนน → คิดเป็น 100 คะแนนสุทธิ</span>
+          </div>
+          <div id="unitProportionBar" class="w-full h-7 rounded-lg overflow-hidden flex bg-slate-200 border border-slate-300 text-[11px] font-bold text-white">
+            <!-- Populated by JS -->
+          </div>
+        </div>
+
+        <!-- Units Table -->
+        <div class="overflow-x-auto">
+          <table class="w-full border-collapse text-sm">
+            <thead class="bg-slate-100 text-slate-700 text-xs uppercase">
+              <tr>
+                <th class="py-3 px-4 text-center w-16">ลำดับ</th>
+                <th class="py-3 px-4 text-left">ชื่อหน่วยการเรียนรู้ / ชิ้นงาน / การสอบ</th>
+                <th class="py-3 px-4 text-center">ประเภทหน่วย</th>
+                <th class="py-3 px-4 text-center w-40">คะแนนเต็มดิบ (ตั้งต้น)</th>
+                <th class="py-3 px-4 text-center w-44">น้ำหนักคะแนนที่ตัด (Weight)</th>
+                <th class="py-3 px-4 text-center w-36">สัดส่วนใน 100 คะแนน</th>
+                <th class="py-3 px-4 text-center w-36">จัดการ</th>
+              </tr>
+            </thead>
+            <tbody id="unitsManagerTbody" class="divide-y divide-slate-200">
+              <!-- Populated by JS -->
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- ======================================================================= -->
+    <!-- TAB 3: STUDENT ROSTER & IMPORT (จัดการและนำเข้ารายชื่อนักเรียน)          -->
+    <!-- ======================================================================= -->
+    <div id="tabContent-students" class="hidden space-y-4">
+      <div class="grid grid-cols-1 lg:grid-cols-3 gap-5">
+        <!-- Left Column: Add Single Student & Bulk Import -->
+        <div class="space-y-4">
+          <!-- Single Add Card -->
+          <div class="bg-white rounded-2xl border border-slate-200 p-5 shadow-sm space-y-3.5">
+            <h3 class="text-base font-bold text-slate-800 flex items-center gap-2">
+              <i data-lucide="user-plus" class="w-5 h-5 text-brand-600"></i>
+              <span>เพิ่มรายชื่อนักเรียนรายคน</span>
+            </h3>
+            <form onsubmit="handleAddSingleStudent(event)" class="space-y-3">
+              <div class="grid grid-cols-2 gap-2.5">
+                <div>
+                  <label class="block text-xs font-semibold text-slate-600 mb-1">เลขที่ *</label>
+                  <input type="number" id="addStuNo" required min="1" class="w-full px-3 py-2 rounded-xl border border-slate-300 text-sm focus:ring-2 focus:ring-brand-500 focus:outline-none" placeholder="เช่น 1" />
+                </div>
+                <div>
+                  <label class="block text-xs font-semibold text-slate-600 mb-1">คำนำหน้า</label>
+                  <select id="addStuPrefix" class="w-full px-2.5 py-2 rounded-xl border border-slate-300 text-sm bg-white">
+                    <option value="ด.ช.">ด.ช.</option>
+                    <option value="ด.ญ.">ด.ญ.</option>
+                    <option value="นาย">นาย</option>
+                    <option value="น.ส.">น.ส.</option>
+                    <option value="">ไม่ระบุ</option>
+                  </select>
+                </div>
+              </div>
+              <div>
+                <label class="block text-xs font-semibold text-slate-600 mb-1">ชื่อ - นามสกุล *</label>
+                <input type="text" id="addStuFullName" required class="w-full px-3 py-2 rounded-xl border border-slate-300 text-sm focus:ring-2 focus:ring-brand-500 focus:outline-none" placeholder="เช่น สมชาย ใจดี" />
+              </div>
+              <button type="submit" class="w-full py-2.5 rounded-xl bg-brand-600 hover:bg-brand-700 text-white font-semibold text-sm shadow-sm transition flex items-center justify-center gap-1.5">
+                <i data-lucide="plus" class="w-4 h-4"></i>
+                <span>เพิ่มเข้าห้องเรียนนี้</span>
+              </button>
+            </form>
+          </div>
+
+          <!-- Bulk Import Card -->
+          <div class="bg-gradient-to-br from-indigo-900 to-brand-800 text-white rounded-2xl p-5 shadow-sm space-y-3">
+            <div class="flex items-center gap-2.5">
+              <div class="w-9 h-9 rounded-xl bg-white/15 flex items-center justify-center">
+                <i data-lucide="file-spreadsheet" class="w-5 h-5 text-amber-300"></i>
+              </div>
+              <div>
+                <h3 class="text-sm font-bold">นำเข้ารายชื่อนักเรียนทั้งห้อง (Bulk Import)</h3>
+                <p class="text-xs text-blue-200">คัดลอกจาก Excel / Google Sheets หรืออัปโหลดไฟล์ CSV</p>
+              </div>
+            </div>
+            <p class="text-xs text-blue-100 leading-relaxed">
+              รองรับการวางข้อมูลหลายบรรทัดพร้อมกัน เช่น <code class="bg-white/15 px-1.5 py-0.5 rounded">เลขที่, ชื่อ-นามสกุล</code> หรือวางเฉพาะรายชื่อให้นับเลขที่อัตโนมัติ
+            </p>
+            <button onclick="openBulkImportModal()" class="w-full py-2.5 rounded-xl bg-amber-400 hover:bg-amber-300 text-slate-950 font-bold text-sm transition flex items-center justify-center gap-1.5 shadow">
+              <i data-lucide="upload" class="w-4 h-4"></i>
+              <span>เปิดหน้าต่างนำเข้ารายชื่อจำนวนมาก</span>
+            </button>
+          </div>
+        </div>
+
+        <!-- Right Column: Student Roster List -->
+        <div class="lg:col-span-2 bg-white rounded-2xl border border-slate-200 p-5 shadow-sm space-y-4">
+          <div class="flex flex-wrap items-center justify-between gap-2 border-b border-slate-100 pb-3">
+            <div>
+              <h3 class="text-base font-bold text-slate-800">รายชื่อนักเรียนในห้องเรียนปัจจุบัน</h3>
+              <p class="text-xs text-slate-500">สามารถแก้ไขชื่อ หรือเรียงลำดับเลขที่ใหม่ได้โดยตรง</p>
+            </div>
+            <div class="flex items-center gap-2">
+              <button onclick="renumberStudents()" class="px-3 py-1.5 rounded-lg border border-slate-300 hover:bg-slate-100 text-xs font-semibold text-slate-700 transition">
+                เรียงเลขที่ใหม่ (1..N)
+              </button>
+              <button onclick="clearAllStudentsInClass()" class="px-3 py-1.5 rounded-lg border border-rose-200 hover:bg-rose-50 text-xs font-semibold text-rose-600 transition">
+                ล้างรายชื่อทั้งห้อง
+              </button>
+            </div>
+          </div>
+
+          <div class="overflow-x-auto max-h-[540px]">
+            <table class="w-full border-collapse text-sm">
+              <thead class="bg-slate-100 text-slate-700 text-xs uppercase sticky top-0">
+                <tr>
+                  <th class="py-2.5 px-3 text-center w-20">เลขที่</th>
+                  <th class="py-2.5 px-3 text-left">คำนำหน้า - ชื่อ - นามสกุล</th>
+                  <th class="py-2.5 px-3 text-center w-24">จัดการ</th>
+                </tr>
+              </thead>
+              <tbody id="studentRosterTbody" class="divide-y divide-slate-200 font-body">
+                <!-- Populated by JS -->
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
+  </main>
+
+  <!-- ======================= FOOTER ======================= -->
+  <footer class="bg-white border-t border-slate-200 py-4 px-4 sm:px-6 mt-6">
+    <div class="max-w-[1600px] mx-auto text-center text-xs sm:text-sm font-medium text-slate-600">
+      พัฒนาโดย : นายนรินทร์  อนงค์ชัย ตำแหน่ง ครู โรงเรียนเทพอุดมวิทยา สพม.สุรินทร์
+    </div>
+  </footer>
+
+  <!-- ======================= MODAL 1: SUBJECT & ROOM SETTINGS (ตั้งค่ารายวิชา) ======================= -->
+  <div id="modalSubjectSettings" class="fixed inset-0 bg-slate-900/60 backdrop-blur-xs z-50 hidden items-center justify-center p-4">
+    <div class="bg-white rounded-2xl max-w-md w-full shadow-2xl border border-slate-200 overflow-hidden">
+      <div class="bg-brand-800 text-white px-5 py-4 flex items-center justify-between">
+        <h3 class="font-bold text-base flex items-center gap-2">
+          <i data-lucide="settings" class="w-5 h-5 text-amber-300"></i>
+          <span>ตั้งค่ารายวิชา</span>
+        </h3>
+        <button onclick="closeModal('modalSubjectSettings')" class="text-white/70 hover:text-white">
+          <i data-lucide="x" class="w-5 h-5"></i>
+        </button>
+      </div>
+      <form onsubmit="handleSaveSubjectSettings(event)" class="p-5 space-y-4">
+        <div class="grid grid-cols-3 gap-3">
+          <div>
+            <label class="block text-xs font-semibold text-slate-700 mb-1">รหัสวิชา *</label>
+            <input type="text" id="subjectCodeInput" required placeholder="เช่น อ23102" class="w-full px-3 py-2 rounded-xl border border-slate-300 text-sm focus:ring-2 focus:ring-brand-500 focus:outline-none" />
+          </div>
+          <div class="col-span-2">
+            <label class="block text-xs font-semibold text-slate-700 mb-1">ชื่อวิชา *</label>
+            <input type="text" id="subjectNameInput" required placeholder="เช่น ภาษาอังกฤษพื้นฐาน" class="w-full px-3 py-2 rounded-xl border border-slate-300 text-sm focus:ring-2 focus:ring-brand-500 focus:outline-none" />
+          </div>
+        </div>
+        <div class="grid grid-cols-2 gap-3">
+          <div>
+            <label class="block text-xs font-semibold text-slate-700 mb-1">ชั้นเรียน *</label>
+            <input type="text" id="subjectGradeInput" required placeholder="เช่น ม.3" class="w-full px-3 py-2 rounded-xl border border-slate-300 text-sm focus:ring-2 focus:ring-brand-500 focus:outline-none" />
+          </div>
+          <div>
+            <label class="block text-xs font-semibold text-slate-700 mb-1">ห้อง *</label>
+            <input type="text" id="subjectRoomInput" required placeholder="เช่น ห้อง 1 (ม.3/1)" class="w-full px-3 py-2 rounded-xl border border-slate-300 text-sm focus:ring-2 focus:ring-brand-500 focus:outline-none" />
+          </div>
+        </div>
+        <div class="grid grid-cols-2 gap-3">
+          <div>
+            <label class="block text-xs font-semibold text-slate-700 mb-1">ภาคเรียน *</label>
+            <select id="subjectSemesterInput" class="w-full px-3 py-2 rounded-xl border border-slate-300 text-sm bg-white">
+              <option value="1">ภาคเรียนที่ 1</option>
+              <option value="2">ภาคเรียนที่ 2</option>
+            </select>
+          </div>
+          <div>
+            <label class="block text-xs font-semibold text-slate-700 mb-1">ปีการศึกษา *</label>
+            <input type="text" id="subjectAcademicYearInput" required placeholder="เช่น 2569" class="w-full px-3 py-2 rounded-xl border border-slate-300 text-sm focus:ring-2 focus:ring-brand-500 focus:outline-none" />
+          </div>
+        </div>
+        <div class="flex justify-end gap-2 pt-2 border-t border-slate-100">
+          <button type="button" onclick="closeModal('modalSubjectSettings')" class="px-4 py-2 rounded-xl border border-slate-300 text-slate-700 text-sm font-medium hover:bg-slate-50">ยกเลิก</button>
+          <button type="submit" class="px-5 py-2 rounded-xl bg-brand-600 hover:bg-brand-700 text-white text-sm font-semibold shadow-sm">บันทึก</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- ======================= MODAL 2: CREATE / EDIT UNIT ======================= -->
+  <div id="modalUnitForm" class="fixed inset-0 bg-slate-900/60 backdrop-blur-xs z-50 hidden items-center justify-center p-4">
+    <div class="bg-white rounded-2xl max-w-md w-full shadow-2xl border border-slate-200 overflow-hidden">
+      <div class="bg-amber-500 text-slate-950 px-5 py-4 flex items-center justify-between">
+        <h3 id="modalUnitTitle" class="font-bold text-base flex items-center gap-2">
+          <i data-lucide="layers" class="w-5 h-5"></i>
+          <span>เพิ่ม / แก้ไขหน่วยเก็บคะแนน</span>
+        </h3>
+        <button onclick="closeModal('modalUnitForm')" class="text-slate-900/70 hover:text-slate-950">
+          <i data-lucide="x" class="w-5 h-5"></i>
+        </button>
+      </div>
+      <form onsubmit="handleSaveUnit(event)" class="p-5 space-y-4">
+        <input type="hidden" id="unitFormId" value="" />
+        <div>
+          <label class="block text-xs font-semibold text-slate-700 mb-1">ชื่อหน่วยการเรียนรู้ / ชิ้นงาน / การสอบ *</label>
+          <input type="text" id="unitNameInput" required placeholder="เช่น หน่วยที่ 1 Reading, สอบย่อยบทที่ 2, กลางภาค" class="w-full px-3.5 py-2 rounded-xl border border-slate-300 text-sm focus:ring-2 focus:ring-amber-500 focus:outline-none" />
+        </div>
+        <div>
+          <label class="block text-xs font-semibold text-slate-700 mb-1">ประเภทของคะแนน</label>
+          <select id="unitTypeInput" class="w-full px-3.5 py-2 rounded-xl border border-slate-300 text-sm bg-white">
+            <option value="formative">คะแนนเก็บรายหน่วย (ระหว่างภาค)</option>
+            <option value="midterm">สอบกลางภาค (Midterm)</option>
+            <option value="final">สอบปลายภาค (Final)</option>
+          </select>
+        </div>
+        <div class="grid grid-cols-2 gap-3">
+          <div>
+            <label class="block text-xs font-semibold text-slate-700 mb-1">คะแนนเต็มดิบ (ตั้งต้น) *</label>
+            <input type="number" id="unitMaxRawInput" required min="1" max="1000" step="any" value="20" oninput="syncWeightInputIfNeeded()" class="w-full px-3.5 py-2 rounded-xl border border-slate-300 text-sm font-bold text-brand-700 focus:ring-2 focus:ring-amber-500 focus:outline-none" />
+            <p class="text-[11px] text-slate-400 mt-1">คะแนนเต็มที่ใช้กรอกในตาราง</p>
+          </div>
+          <div>
+            <label class="block text-xs font-semibold text-slate-700 mb-1">น้ำหนักคะแนนที่ตัด (Weight)</label>
+            <input type="number" id="unitWeightInput" required min="1" max="100" step="any" value="20" class="w-full px-3.5 py-2 rounded-xl border border-slate-300 text-sm font-bold text-emerald-700 focus:ring-2 focus:ring-amber-500 focus:outline-none" />
+            <p class="text-[11px] text-slate-400 mt-1">สัดส่วนคะแนนเมื่อตัดเต็ม 100</p>
+          </div>
+        </div>
+        <div class="flex justify-end gap-2 pt-2 border-t border-slate-100">
+          <button type="button" onclick="closeModal('modalUnitForm')" class="px-4 py-2 rounded-xl border border-slate-300 text-slate-700 text-sm font-medium hover:bg-slate-50">ยกเลิก</button>
+          <button type="submit" class="px-5 py-2 rounded-xl bg-amber-500 hover:bg-amber-600 text-slate-950 text-sm font-bold shadow-sm">บันทึกหน่วยเก็บคะแนน</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- ======================= MODAL 3: BULK IMPORT STUDENTS ======================= -->
+  <div id="modalBulkImport" class="fixed inset-0 bg-slate-900/60 backdrop-blur-xs z-50 hidden items-center justify-center p-4">
+    <div class="bg-white rounded-2xl max-w-2xl w-full shadow-2xl border border-slate-200 overflow-hidden">
+      <div class="bg-indigo-700 text-white px-5 py-4 flex items-center justify-between">
+        <h3 class="font-bold text-base flex items-center gap-2">
+          <i data-lucide="file-spreadsheet" class="w-5 h-5 text-amber-300"></i>
+          <span>นำเข้ารายชื่อนักเรียนจำนวนมาก (Copy & Paste จาก Excel / Google Sheets หรือไฟล์ CSV)</span>
+        </h3>
+        <button onclick="closeModal('modalBulkImport')" class="text-white/70 hover:text-white">
+          <i data-lucide="x" class="w-5 h-5"></i>
+        </button>
+      </div>
+      <div class="p-5 space-y-4">
+        <div class="bg-indigo-50 border border-indigo-200 rounded-xl p-3.5 text-xs text-indigo-900 space-y-1">
+          <p class="font-bold">วิธีใช้งานง่ายๆ (รองรับทั้งการวางจากตาราง Excel/Google Sheets และไฟล์ .csv):</p>
+          <p>1. คัดลอกคอลัมน์จาก Excel หรือ Google Sheets แล้วนำมาวางในช่องด้านล่าง (1 บรรทัดต่อ 1 คน)</p>
+          <p>2. รูปแบบที่รองรับ: <code class="bg-white px-1.5 py-0.5 rounded border">เลขที่ [Tab หรือ ,] ชื่อ-นามสกุล</code> หรือวางเฉพาะ <code class="bg-white px-1.5 py-0.5 rounded border">ชื่อ-นามสกุล</code> ก็ได้</p>
+        </div>
+
+        <!-- Upload CSV file option -->
+        <div class="flex flex-wrap items-center justify-between gap-2">
+          <label class="inline-flex items-center gap-2 px-3.5 py-2 rounded-xl border border-slate-300 hover:bg-slate-50 text-xs font-semibold text-slate-700 cursor-pointer">
+            <i data-lucide="folder-open" class="w-4 h-4 text-indigo-600"></i>
+            <span>เลือกไฟล์ .CSV หรือ .TXT จากเครื่อง</span>
+            <input type="file" accept=".csv,.txt" onchange="handleCSVFileUpload(event)" class="hidden" />
+          </label>
+          <button type="button" onclick="fillSampleStudentImportText()" class="text-xs text-indigo-600 hover:underline font-medium">
+            + ใส่ข้อมูลตัวอย่างเพื่อทดลองนำเข้า
+          </button>
+        </div>
+
+        <textarea id="bulkImportTextarea" rows="8" placeholder="ตัวอย่างการวางข้อมูล:&#10;1	ด.ช.กิตติพงศ์ รักเรียน&#10;2	ด.ญ.กัญญาณัฐ ตั้งใจดี&#10;3	ด.ช.ณัฐวุฒิ เก่งกาจ" class="w-full p-3.5 rounded-xl border border-slate-300 font-mono text-xs sm:text-sm focus:ring-2 focus:ring-indigo-500 focus:outline-none"></textarea>
+
+        <div class="flex flex-wrap items-center justify-between gap-3 pt-2 border-t border-slate-100">
+          <label class="flex items-center gap-2 text-xs font-medium text-slate-700 cursor-pointer">
+            <input type="checkbox" id="bulkReplaceExisting" class="rounded text-indigo-600" />
+            <span>แทนที่รายชื่อเดิมทั้งหมดในห้องนี้ (หากไม่ติ๊ก จะเป็นการเพิ่มต่อท้าย)</span>
+          </label>
+          <div class="flex items-center gap-2">
+            <button type="button" onclick="closeModal('modalBulkImport')" class="px-4 py-2 rounded-xl border border-slate-300 text-slate-700 text-sm font-medium hover:bg-slate-50">ยกเลิก</button>
+            <button type="button" onclick="processBulkStudentImport()" class="px-5 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-semibold shadow-sm">นำเข้ารายชื่อนักเรียนทันที</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ======================= MODAL 5: UNIT SUB-ACTIVITIES GRADEBOOK (หน้าต่างเก็บคะแนนรายกิจกรรมของหน่วย) ======================= -->
+  <div id="modalUnitActivities" class="fixed inset-0 bg-slate-900/70 backdrop-blur-xs z-50 hidden items-center justify-center p-2 sm:p-4">
+    <div class="bg-white rounded-2xl max-w-[1440px] w-full shadow-2xl border border-slate-200 overflow-hidden max-h-[94vh] flex flex-col">
+      <!-- Modal Header -->
+      <div class="bg-gradient-to-r from-brand-900 via-brand-800 to-indigo-900 text-white px-5 py-4 flex flex-wrap items-center justify-between gap-3 shrink-0">
+        <div class="flex items-center gap-3">
+          <div class="w-10 h-10 rounded-xl bg-amber-400/20 border border-amber-300/40 flex items-center justify-center text-amber-300">
+            <i data-lucide="clipboard-list" class="w-5 h-5"></i>
+          </div>
+          <div>
+            <div class="flex items-center gap-2 flex-wrap">
+              <h3 id="actModalUnitTitle" class="font-bold text-base sm:text-lg">ตารางคะแนนรายกิจกรรมย่อยประจำหน่วย</h3>
+              <span id="actModalUnitBadge" class="px-2.5 py-0.5 rounded-full text-xs font-bold bg-amber-400 text-slate-950">คะแนนเต็มหน่วย 20</span>
+            </div>
+            <p id="actModalSubtitle" class="text-xs text-blue-200 mt-0.5">คลิกเพิ่มกิจกรรมด้านล่างเพื่อเก็บคะแนนใบงาน ชิ้นงาน หรือทดสอบย่อย ระบบจะคำนวณเข้าตารางรวมให้โดยอัตโนมัติ</p>
+          </div>
+        </div>
+        <div class="flex items-center gap-2">
+          <button onclick="openUnitModal(currentActivityUnitId)" class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-white/10 hover:bg-white/20 text-white text-xs font-semibold border border-white/20 transition">
+            <i data-lucide="settings" class="w-3.5 h-3.5"></i>
+            <span>ตั้งค่าชื่อ/คะแนนเต็มหน่วย</span>
+          </button>
+          <button onclick="closeModal('modalUnitActivities')" class="p-1.5 rounded-xl bg-white/10 hover:bg-rose-500 text-white transition" title="ปิดหน้าต่าง">
+            <i data-lucide="x" class="w-5 h-5"></i>
+          </button>
+        </div>
+      </div>
+
+      <!-- Toolbar: Add Activity & Calc Mode -->
+      <div class="bg-slate-50 border-b border-slate-200 px-5 py-3.5 flex flex-wrap items-center justify-between gap-3 shrink-0">
+        <!-- Form to add new activity -->
+        <form onsubmit="handleAddActivity(event)" class="flex flex-wrap items-center gap-2">
+          <div class="flex items-center gap-1.5 text-xs font-bold text-slate-700 mr-1">
+            <i data-lucide="plus-circle" class="w-4 h-4 text-brand-600"></i>
+            <span>เพิ่มกิจกรรมในหน่วยนี้:</span>
+          </div>
+          <input type="text" id="newActivityNameInput" required placeholder="ชื่อกิจกรรม เช่น ใบงานที่ 1, ทดสอบย่อย..." class="px-3 py-1.5 rounded-xl border border-slate-300 bg-white text-xs sm:text-sm focus:ring-2 focus:ring-brand-500 focus:outline-none w-56 sm:w-64" />
+          <div class="flex items-center gap-1 bg-white px-2.5 py-1.5 rounded-xl border border-slate-300">
+            <span class="text-xs text-slate-500">คะแนนเต็ม:</span>
+            <input type="number" id="newActivityMaxInput" required min="1" max="1000" step="any" value="10" class="w-14 text-center font-bold text-brand-700 text-xs sm:text-sm focus:outline-none" />
+          </div>
+          <button type="submit" class="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl bg-brand-600 hover:bg-brand-700 text-white text-xs sm:text-sm font-semibold shadow-xs transition">
+            <i data-lucide="plus" class="w-4 h-4"></i>
+            <span>เพิ่มกิจกรรม</span>
+          </button>
+        </form>
+
+        <!-- How activities roll up to unit score -->
+        <div class="flex flex-wrap items-center gap-2 bg-white px-3 py-1.5 rounded-xl border border-slate-200 shadow-2xs">
+          <span class="text-xs font-semibold text-slate-600">วิธีรวมคะแนนกิจกรรมเข้าหน่วย:</span>
+          <select id="unitActivityCalcModeSelect" onchange="handleChangeUnitActivityCalcMode(this.value)" class="text-xs font-bold text-brand-700 bg-blue-50 px-2.5 py-1 rounded-lg border border-blue-200 focus:outline-none">
+            <option value="scale_unit">เทียบบัญญัติไตรยางศ์ให้เป็นคะแนนเต็มหน่วย</option>
+            <option value="sum_sync_max">รวมคะแนนดิบทุกกิจกรรมตรงๆ (ปรับคะแนนเต็มหน่วยตามผลรวมกิจกรรม)</option>
+          </select>
+        </div>
+      </div>
+
+      <!-- Activities List Pills (Quick edit/delete) -->
+      <div id="unitActivitiesPillsBar" class="px-5 py-2.5 bg-white border-b border-slate-100 flex items-center gap-2 overflow-x-auto shrink-0">
+        <!-- Populated by JS -->
+      </div>
+
+      <!-- Table Area -->
+      <div class="flex-1 overflow-hidden p-4 sm:p-5 bg-slate-100/70 flex flex-col min-h-0">
+        <div class="bg-white rounded-2xl border border-slate-200 shadow-xs overflow-hidden flex-1 flex flex-col min-h-0">
+          <div class="overflow-auto flex-1">
+            <table class="w-full border-collapse text-sm">
+              <thead id="activityModalThead" class="bg-slate-800 text-white text-xs uppercase select-none">
+                <!-- Populated by JS -->
+              </thead>
+              <tbody id="activityModalTbody" class="divide-y divide-slate-200 font-body">
+                <!-- Populated by JS -->
+              </tbody>
+              <tfoot id="activityModalTfoot" class="bg-slate-100 font-semibold text-slate-700 border-t-2 border-slate-300 text-xs sm:text-sm">
+                <!-- Populated by JS -->
+              </tfoot>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <!-- Modal Footer -->
+      <div class="px-5 py-3 bg-white border-t border-slate-200 flex flex-wrap items-center justify-between gap-2 shrink-0">
+        <p class="text-xs text-slate-500 flex items-center gap-1.5">
+          <i data-lucide="check-circle-2" class="w-4 h-4 text-emerald-600"></i>
+          <span>ทุกครั้งที่กรอกคะแนนรายกิจกรรม ระบบจะคำนวณคะแนนสุทธิประจำหน่วยและอัปเดตตารางรวม (เต็ม 100) ให้ทันที</span>
+        </p>
+        <div class="flex items-center gap-2">
+          <button onclick="exportCurrentUnitActivitiesCSV()" class="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl border border-slate-300 hover:bg-slate-100 text-slate-700 text-xs font-semibold transition">
+            <i data-lucide="download" class="w-3.5 h-3.5"></i>
+            <span>ส่งออก CSV เฉพาะหน่วยนี้</span>
+          </button>
+          <button onclick="closeModal('modalUnitActivities')" class="px-5 py-2 rounded-xl bg-brand-600 hover:bg-brand-700 text-white text-xs sm:text-sm font-semibold shadow-xs transition">
+            เสร็จสิ้น / กลับสู่ตารางรวม
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ======================= MODAL 6: LOGIN TO EDIT (ลงชื่อแก้ไข) ======================= -->
+  <div id="modalOwnerAuth" class="fixed inset-0 bg-slate-900/70 backdrop-blur-xs z-50 hidden items-center justify-center p-4">
+    <div class="bg-white rounded-2xl max-w-md w-full shadow-2xl border border-slate-200 overflow-hidden">
+      <!-- Header -->
+      <div class="bg-gradient-to-r from-slate-900 via-brand-900 to-indigo-900 text-white px-5 py-4 flex items-center justify-between">
+        <div class="flex items-center gap-3">
+          <div class="w-10 h-10 rounded-xl bg-amber-400 text-slate-950 font-extrabold flex items-center justify-center shadow">
+            <i data-lucide="key-round" class="w-5 h-5"></i>
+          </div>
+          <div>
+            <h3 class="font-bold text-base">ลงชื่อแก้ไข</h3>
+          </div>
+        </div>
+        <button onclick="closeModal('modalOwnerAuth')" class="text-white/70 hover:text-white">
+          <i data-lucide="x" class="w-5 h-5"></i>
+        </button>
+      </div>
+
+      <!-- Body -->
+      <div class="p-5 space-y-4 text-sm">
+        <!-- Login Form -->
+        <form onsubmit="handleLoginToEdit(event)" class="space-y-3.5">
+          <div>
+            <label class="block text-xs font-bold text-slate-700 mb-1">ชื่อผู้ใช้ (Username) *</label>
+            <div class="relative">
+              <i data-lucide="user" class="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2"></i>
+              <input type="text" id="loginUsernameInput" required placeholder="กรอกชื่อผู้ใช้" autocomplete="username" class="w-full pl-10 pr-3.5 py-2.5 rounded-xl border border-slate-300 text-sm focus:ring-2 focus:ring-brand-500 focus:outline-none" />
+            </div>
+          </div>
+
+          <div>
+            <label class="block text-xs font-bold text-slate-700 mb-1">รหัสผ่าน (Password) *</label>
+            <div class="relative">
+              <i data-lucide="lock" class="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2"></i>
+              <input type="password" id="loginPasswordInput" required placeholder="กรอกรหัสผ่าน" autocomplete="current-password" class="w-full pl-10 pr-3.5 py-2.5 rounded-xl border border-slate-300 text-sm focus:ring-2 focus:ring-brand-500 focus:outline-none" />
+            </div>
+          </div>
+
+          <div class="flex flex-wrap items-center justify-between gap-2 pt-2 border-t border-slate-100">
+            <button type="button" id="btnLogoutEditMode" onclick="handleLogoutEditMode()" class="hidden inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl border border-rose-200 hover:bg-rose-50 text-rose-600 text-xs font-bold transition">
+              <i data-lucide="lock" class="w-3.5 h-3.5"></i>
+              <span>ออกจากโหมดแก้ไข</span>
+            </button>
+            <div class="flex items-center gap-2 ml-auto">
+              <button type="button" onclick="closeModal('modalOwnerAuth')" class="px-4 py-2 rounded-xl border border-slate-300 text-slate-700 text-xs sm:text-sm font-medium hover:bg-slate-50">ยกเลิก</button>
+              <button type="submit" id="btnSubmitLoginEdit" class="inline-flex items-center gap-1.5 px-5 py-2 rounded-xl bg-brand-600 hover:bg-brand-700 text-white text-xs sm:text-sm font-bold shadow-sm transition">
+                <i data-lucide="unlock" class="w-4 h-4"></i>
+                <span>เข้าสู่ระบบ</span>
+              </button>
+            </div>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <!-- ======================= MODAL 7: LOADING PROGRESS POPUP ======================= -->
+  <div id="modalLoadingProgress" class="fixed inset-0 bg-slate-900/75 backdrop-blur-xs z-50 hidden items-center justify-center p-4">
+    <div class="bg-white rounded-2xl max-w-sm w-full shadow-2xl border border-slate-200 p-6 text-center space-y-4">
+      <div class="w-14 h-14 rounded-2xl bg-brand-50 text-brand-600 mx-auto flex items-center justify-center border border-brand-100">
+        <i data-lucide="loader-2" class="w-8 h-8 animate-spin"></i>
+      </div>
+      <div class="space-y-1">
+        <h3 id="loadingProgressTitle" class="font-bold text-base text-slate-800">กำลังดึงข้อมูลคะแนนล่าสุด...</h3>
+        <p id="loadingProgressSub" class="text-xs text-slate-500">กำลังเชื่อมต่อฐานข้อมูล Google Sheets กรุณารอสักครู่</p>
+      </div>
+      <div class="w-full h-2.5 bg-slate-100 rounded-full overflow-hidden border border-slate-200">
+        <div id="loadingProgressBar" class="h-full bg-gradient-to-r from-brand-600 to-emerald-500 transition-all duration-300" style="width: 25%"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Toast Notification -->
+  <div id="toastContainer" class="fixed bottom-5 right-5 z-50 flex flex-col gap-2 pointer-events-none"></div>
+
+  <!-- ไฟล์เก็บค่าลิงก์ Google Apps Script Web App URL (แค่บรรทัดเดียว) -->
+  <script src="gas-url.js"></script>
+
+  <!-- ======================= APPLICATION JAVASCRIPT ======================= -->
+  <script>
+    // แยกพื้นที่เก็บข้อมูลในเครื่อง (localStorage) ตามลิงก์/โฟลเดอร์ (Pathname) อัตโนมัติ
+    // ทำให้ฝากไว้บน GitHub หลายลิงก์/หลายห้องเรียน และเปิดใช้งานพร้อมกันได้โดยข้อมูลและลิงก์ Sheet ไม่ทับกัน
+    const PAGE_SCOPE = (window.location.pathname || 'default').replace(/[^a-zA-Z0-9_-]/g, '_');
+    const STORAGE_KEY = 'pp5_student_gradebook_v1_' + PAGE_SCOPE;
+    const GAS_URL_KEY = 'pp5_gas_webapp_url_v1_' + PAGE_SCOPE;
+
+    function getActiveGasUrl() {
+      const fromExternalFile = (typeof DEFAULT_GAS_WEBAPP_URL !== 'undefined') ? DEFAULT_GAS_WEBAPP_URL : '';
+      return (fromExternalFile || localStorage.getItem(GAS_URL_KEY) || '').trim();
+    }
+
+    let appData = {
+      activeClassId: 'cls_m3_1',
+      activeTab: 'gradebook',
+      subjectConfig: {
+        subject_code: 'อ23102',
+        subject_name: 'ภาษาอังกฤษพื้นฐาน',
+        semester: '2',
+        academic_year: '2569'
+      },
+      classes: [],
+      students: [],
+      units: [],
+      scores: [],        // { score_id, class_id, student_id, unit_id, score_value }
+      activities: [],    // { activity_id, class_id, unit_id, activity_order, activity_name, max_score }
+      activityScores: [] // { act_score_id, class_id, unit_id, activity_id, student_id, score_value }
+    };
+
+    // ค่าเริ่มต้นเมื่อเปิดหน้าเว็บจะเป็น "โหมดดูอย่างเดียว" (isAuthenticated = false) เสมอ
+    let currentSessionUser = {
+      isAuthenticated: false,
+      username: '',
+      password: '',
+      displayName: ''
+    };
+
+    let currentActivityUnitId = '';
+
+    // ---------------------------------------------------------------------------
+    // 1. INITIALIZATION & DEMO DATA
+    // ---------------------------------------------------------------------------
+    function initApp() {
+      const saved = localStorage.getItem(STORAGE_KEY);
+      if (saved) {
+        try {
+          const parsed = JSON.parse(saved);
+          if (parsed && Array.isArray(parsed.classes) && parsed.classes.length > 0) {
+            appData = parsed;
+            if (!Array.isArray(appData.activities)) appData.activities = [];
+            if (!Array.isArray(appData.activityScores)) appData.activityScores = [];
+
+            // บังคับให้เหลือเพียง 1 ชั้น/ห้องเรียนเดียวเท่านั้น (ลบ ม.3/2, ม.4 หรือห้องอื่นๆ ที่เกินออกทั้งหมด)
+            const keepClass = appData.classes[0];
+            const keepClassId = keepClass.class_id;
+            appData.activeClassId = keepClassId;
+            if (appData.classes.length > 1) {
+              appData.classes = [keepClass];
+              appData.students = (appData.students || []).filter(s => s.class_id === keepClassId);
+              appData.units = (appData.units || []).filter(u => u.class_id === keepClassId);
+              appData.scores = (appData.scores || []).filter(sc => sc.class_id === keepClassId);
+              appData.activities = (appData.activities || []).filter(a => a.class_id === keepClassId);
+              appData.activityScores = (appData.activityScores || []).filter(as => as.class_id === keepClassId);
+              saveToLocal();
+            }
+
+            if (!appData.subjectConfig) {
+              appData.subjectConfig = {
+                subject_code: keepClass.subject_code || 'อ23102',
+                subject_name: keepClass.subject_name || 'ภาษาอังกฤษพื้นฐาน',
+                grade_level: keepClass.grade_level || 'ม.3',
+                room_name: keepClass.room_name || 'ห้อง 1 (ม.3/1)',
+                semester: keepClass.semester || '2',
+                academic_year: keepClass.academic_year || '2569'
+              };
+            }
+            // ตัดหน่วย "ชิ้นงาน / จิตพิสัย" เดิมออกอัตโนมัติ (เพราะเก็บในกิจกรรมย่อยแต่ละหน่วยแล้ว)
+            const attitudeUnitIds = (appData.units || [])
+              .filter(u => u.unit_id === 'u_5' || u.unit_type === 'attitude' || String(u.unit_name || '').includes('จิตพิสัย'))
+              .map(u => u.unit_id);
+            if (attitudeUnitIds.length > 0) {
+              appData.units = appData.units.filter(u => !attitudeUnitIds.includes(u.unit_id));
+              appData.scores = (appData.scores || []).filter(sc => !attitudeUnitIds.includes(sc.unit_id));
+              appData.activities = (appData.activities || []).filter(a => !attitudeUnitIds.includes(a.unit_id));
+              appData.activityScores = (appData.activityScores || []).filter(as => !attitudeUnitIds.includes(as.unit_id));
+              saveToLocal();
+            }
+            seedDemoActivitiesIfEmpty();
+          } else {
+            seedDefaultData();
+          }
+        } catch (e) {
+          seedDefaultData();
+        }
+      } else {
+        seedDefaultData();
+      }
+
+      renderAll();
+      lucide.createIcons();
+
+      // ดึงข้อมูลล่าสุดจาก Google Sheets ทันทีที่เปิดหน้าเว็บ พร้อมแสดง Pop-up Progress
+      const savedUrl = getActiveGasUrl();
+      if (savedUrl) {
+        syncWithGoogleSheets('pull');
+      }
+    }
+
+    function seedDemoActivitiesIfEmpty() {
+      if (appData.activities.length > 0) return;
+      const u1 = appData.units.find(u => u.unit_id === 'u_1');
+      if (!u1) return;
+      const c1 = u1.class_id;
+      u1.activity_calc_mode = 'sum_sync_max';
+
+      appData.activities = [
+        { activity_id: 'act_1', class_id: c1, unit_id: 'u_1', activity_order: 1, activity_name: 'ใบงานที่ 1.1 Vocabulary', max_score: 5 },
+        { activity_id: 'act_2', class_id: c1, unit_id: 'u_1', activity_order: 2, activity_name: 'ใบงานที่ 1.2 Reading Passage', max_score: 5 },
+        { activity_id: 'act_3', class_id: c1, unit_id: 'u_1', activity_order: 3, activity_name: 'ทดสอบท้ายหน่วยที่ 1', max_score: 10 }
+      ];
+
+      const u1Students = appData.students.filter(s => s.class_id === c1);
+      const demoSplit = [
+        [5, 4, 9],
+        [4, 4, 7],
+        [4, 3, 7],
+        [5, 5, 9],
+        [3, 3, 5],
+        [4, 5, 8],
+        [4, 4, 8],
+        [3, 4, 5],
+        [5, 5, 10],
+        [2, 3, 4]
+      ];
+      u1Students.forEach((st, idx) => {
+        const sp = demoSplit[idx] || [4, 4, 8];
+        ['act_1', 'act_2', 'act_3'].forEach((actId, aIdx) => {
+          appData.activityScores.push({
+            act_score_id: `asc_${st.student_id}_${actId}`,
+            class_id: c1,
+            unit_id: 'u_1',
+            activity_id: actId,
+            student_id: st.student_id,
+            score_value: sp[aIdx],
+            updated_at: new Date().toISOString()
+          });
+        });
+      });
+      saveToLocal();
+    }
+
+    function seedDefaultData() {
+      const c1 = 'cls_m3_1';
+
+      appData.activeClassId = c1;
+      appData.subjectConfig = {
+        subject_code: 'อ23102',
+        subject_name: 'ภาษาอังกฤษพื้นฐาน',
+        grade_level: 'ม.3',
+        room_name: 'ห้อง 1 (ม.3/1)',
+        semester: '2',
+        academic_year: '2569'
+      };
+      appData.classes = [
+        {
+          class_id: c1,
+          grade_level: 'ม.3',
+          room_name: 'ห้อง 1 (ม.3/1)',
+          subject_code: 'อ23102',
+          subject_name: 'ภาษาอังกฤษพื้นฐาน',
+          academic_year: '2569',
+          semester: '2',
+          scoring_mode: 'scale100',
+          updated_at: new Date().toISOString()
+        }
+      ];
+
+      appData.units = [
+        { unit_id: 'u_1', class_id: c1, unit_order: 1, unit_type: 'formative', unit_name: 'หน่วยที่ 1: Vocabulary & Reading', max_raw_score: 20, weight_score: 20 },
+        { unit_id: 'u_2', class_id: c1, unit_order: 2, unit_type: 'formative', unit_name: 'หน่วยที่ 2: Grammar in Context', max_raw_score: 20, weight_score: 20 },
+        { unit_id: 'u_3', class_id: c1, unit_order: 3, unit_type: 'formative', unit_name: 'หน่วยที่ 3: Speaking & Listening', max_raw_score: 20, weight_score: 20 },
+        { unit_id: 'u_4', class_id: c1, unit_order: 4, unit_type: 'midterm',   unit_name: 'สอบกลางภาค (Midterm)', max_raw_score: 20, weight_score: 20 },
+        { unit_id: 'u_6', class_id: c1, unit_order: 5, unit_type: 'final',     unit_name: 'สอบปลายภาค (Final)', max_raw_score: 20, weight_score: 20 }
+      ];
+
+      const demoStudents = [
+        { no: 1,  code: '66301', prefix: 'ด.ช.', first: 'กิตติภพ', last: 'เจริญสุข', scores: [18, 17, 19, 18, 17] },
+        { no: 2,  code: '66302', prefix: 'ด.ช.', first: 'ณัฐภัทร', last: 'วงศ์สวัสดิ์', scores: [15, 16, 15, 14, 15] },
+        { no: 3,  code: '66303', prefix: 'ด.ช.', first: 'ธนกฤต', last: 'ภูมิพัฒน์', scores: [14, 13, 14, 13, 14] },
+        { no: 4,  code: '66304', prefix: 'ด.ช.', first: 'ปุณณวิช', last: 'ศรีสุวรรณ', scores: [19, 18, 18, 19, 18] },
+        { no: 5,  code: '66305', prefix: 'ด.ช.', first: 'ศุภณัฐ', last: 'อินทร์จันทร์', scores: [11, 10, 12, 11, 11] },
+        { no: 6,  code: '66306', prefix: 'ด.ญ.', first: 'กัญญาณัฐ', last: 'รัตนากร', scores: [17, 18, 17, 16, 17] },
+        { no: 7,  code: '66307', prefix: 'ด.ญ.', first: 'ชญานิศ', last: 'พงษ์พานิช', scores: [16, 15, 16, 15, 15] },
+        { no: 8,  code: '66308', prefix: 'ด.ญ.', first: 'ณัฏฐณิชา', last: 'ทองดี', scores: [12, 13, 14, 12, 13] },
+        { no: 9,  code: '66309', prefix: 'ด.ญ.', first: 'พิชญาภา', last: 'แสนสุข', scores: [20, 19, 19, 19, 19] },
+        { no: 10, code: '66310', prefix: 'ด.ญ.', first: 'วรัญญา', last: 'สายชล', scores: [9, 8, 10, 9, 9] }
+      ];
+
+      appData.students = [];
+      appData.scores = [];
+
+      demoStudents.forEach((st, idx) => {
+        const stuId = `stu_${idx + 1}`;
+        appData.students.push({
+          student_id: stuId,
+          class_id: c1,
+          student_no: st.no,
+          student_code: st.code,
+          prefix: st.prefix,
+          first_name: st.first,
+          last_name: st.last,
+          status: 'active'
+        });
+
+        const unitIds = ['u_1', 'u_2', 'u_3', 'u_4', 'u_6'];
+        unitIds.forEach((uId, uIdx) => {
+          appData.scores.push({
+            score_id: `sc_${stuId}_${uId}`,
+            class_id: c1,
+            student_id: stuId,
+            unit_id: uId,
+            score_value: st.scores[uIdx],
+            updated_at: new Date().toISOString()
+          });
+        });
+      });
+
+      appData.activities = [];
+      appData.activityScores = [];
+      seedDemoActivitiesIfEmpty();
+      saveToLocal();
+    }
+
+    function saveToLocal() {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(appData));
+      updateSyncBadge('local');
+    }
+
+    function updateSyncBadge(state, customText) {
+      const dot = document.getElementById('syncDot');
+      const text = document.getElementById('syncStatusText');
+      if (state === 'syncing') {
+        dot.className = 'w-2.5 h-2.5 rounded-full bg-amber-400 animate-ping';
+        text.textContent = customText || 'กำลังซิงค์กับ Google Sheets...';
+      } else if (state === 'synced') {
+        dot.className = 'w-2.5 h-2.5 rounded-full bg-emerald-400';
+        text.textContent = customText || 'ซิงค์กับ Google Sheets แล้ว';
+      } else if (state === 'error') {
+        dot.className = 'w-2.5 h-2.5 rounded-full bg-rose-400';
+        text.textContent = customText || 'เชื่อมต่อไม่สำเร็จ (บันทึกในเครื่องแล้ว)';
+      } else {
+        dot.className = 'w-2.5 h-2.5 rounded-full bg-sky-400';
+        text.textContent = customText || 'บันทึกในเครื่องอัตโนมัติแล้ว';
+      }
+    }
+
+    // ---------------------------------------------------------------------------
+    // 1.5 LOGIN TO EDIT (ลงชื่อแก้ไขด้วยชื่อผู้ใช้และรหัสผ่านใน Google Script)
+    // ---------------------------------------------------------------------------
+    function isCurrentUserAuthorized() {
+      return Boolean(currentSessionUser && currentSessionUser.isAuthenticated);
+    }
+
+    function requireOwnerPermission() {
+      if (isCurrentUserAuthorized()) return true;
+      showToast('ขณะนี้อยู่ในโหมดดูอย่างเดียว กรุณากดปุ่ม "ลงชื่อแก้ไข" ก่อนทำการแก้ไขข้อมูล', 'warning');
+      openOwnerAuthModal();
+      return false;
+    }
+
+    function renderOwnerStatusUI() {
+      const authorized = isCurrentUserAuthorized();
+      const btn = document.getElementById('ownerStatusBtn');
+      const text = document.getElementById('ownerStatusText');
+      const btnPushCloud = document.getElementById('btnPushCloud');
+
+      if (authorized) {
+        btn.className = 'inline-flex items-center gap-2 px-3.5 py-2 rounded-xl bg-emerald-400 hover:bg-emerald-300 text-slate-950 text-xs sm:text-sm font-bold transition shadow-sm';
+        text.textContent = `โหมดแก้ไข (${currentSessionUser.displayName || currentSessionUser.username})`;
+        if (btnPushCloud) btnPushCloud.classList.remove('hidden');
+      } else {
+        btn.className = 'inline-flex items-center gap-2 px-3.5 py-2 rounded-xl bg-amber-400 hover:bg-amber-300 text-slate-950 text-xs sm:text-sm font-bold transition shadow-sm';
+        text.textContent = 'ลงชื่อแก้ไข';
+        if (btnPushCloud) btnPushCloud.classList.add('hidden');
+      }
+    }
+
+    function openOwnerAuthModal() {
+      const authorized = isCurrentUserAuthorized();
+      const logoutBtn = document.getElementById('btnLogoutEditMode');
+
+      document.getElementById('loginUsernameInput').value = currentSessionUser.username || '';
+      document.getElementById('loginPasswordInput').value = '';
+
+      if (authorized) {
+        logoutBtn.classList.remove('hidden');
+      } else {
+        logoutBtn.classList.add('hidden');
+      }
+
+      openModal('modalOwnerAuth');
+      lucide.createIcons();
+    }
+
+    async function handleLoginToEdit(e) {
+      e.preventDefault();
+      const username = document.getElementById('loginUsernameInput').value.trim();
+      const password = document.getElementById('loginPasswordInput').value.trim();
+      const submitBtn = document.getElementById('btnSubmitLoginEdit');
+
+      if (!username || !password) {
+        showToast('กรุณากรอกชื่อผู้ใช้และรหัสผ่านให้ครบถ้วน', 'warning');
+        return;
+      }
+
+      const gasUrl = getActiveGasUrl();
+      const originalBtnHtml = submitBtn.innerHTML;
+      submitBtn.disabled = true;
+      submitBtn.innerHTML = `<span>กำลังตรวจสอบ...</span>`;
+
+      try {
+        if (gasUrl) {
+          // ตรวจสอบชื่อผู้ใช้และรหัสผ่านที่เก็บไว้ใน Google Apps Script
+          const query = `${gasUrl}?action=login&username=${encodeURIComponent(username)}&password=${encodeURIComponent(password)}`;
+          const res = await fetch(query);
+          const json = await res.json();
+
+          if (json && json.status === 'ok') {
+            const fetchedTeacherName = (json.user && json.user.displayName) || json.teacherDisplayName || username;
+            currentSessionUser = {
+              isAuthenticated: true,
+              username: (json.user && json.user.username) || username,
+              password: password,
+              displayName: fetchedTeacherName
+            };
+            appData.teacherDisplayName = fetchedTeacherName;
+            saveToLocal();
+            closeModal('modalOwnerAuth');
+            renderAll();
+            showToast(`ลงชื่อแก้ไขสำเร็จ! ยินดีต้อนรับ ${currentSessionUser.displayName}`, 'success');
+          } else {
+            showToast((json && json.message) || 'ชื่อผู้ใช้หรือรหัสผ่านไม่ถูกต้อง', 'warning');
+          }
+        } else {
+          // กรณีใช้งานในเครื่องและยังไม่ได้เชื่อมต่อ URL ของ Google Apps Script (ใช้ค่าเริ่มต้น admin / 1234)
+          if (username === 'admin' && password === '1234') {
+            currentSessionUser = {
+              isAuthenticated: true,
+              username: 'admin',
+              password: password,
+              displayName: 'ครูผู้สอน (โหมดทดสอบในเครื่อง)'
+            };
+            closeModal('modalOwnerAuth');
+            renderAll();
+            showToast('ลงชื่อแก้ไขสำเร็จ! (สามารถแก้ไขข้อมูลได้แล้ว)', 'success');
+          } else {
+            showToast('ชื่อผู้ใช้หรือรหัสผ่านไม่ถูกต้อง (ค่าเริ่มต้น: admin / 1234 หรือตั้งค่า Google Sheet URL ก่อน)', 'warning');
+          }
+        }
+      } catch (err) {
+        showToast('ไม่สามารถติดต่อ Google Script เพื่อตรวจสอบรหัสผ่านได้ กรุณาตรวจสอบ Web App URL', 'warning');
+      } finally {
+        submitBtn.disabled = false;
+        submitBtn.innerHTML = originalBtnHtml;
+        lucide.createIcons();
+      }
+    }
+
+    function handleLogoutEditMode() {
+      currentSessionUser = {
+        isAuthenticated: false,
+        username: '',
+        password: '',
+        displayName: ''
+      };
+      closeModal('modalOwnerAuth');
+      renderAll();
+      showToast('ล็อกระบบกลับเป็นโหมดดูอย่างเดียว (View-Only) เรียบร้อยแล้ว', 'info');
+    }
+
+    // ---------------------------------------------------------------------------
+    // 2. HELPERS & SCORING ENGINE (ตัดคะแนนเต็ม 100 และคำนวณเกรด)
+    // ---------------------------------------------------------------------------
+    function getCurrentClass() {
+      return appData.classes.find(c => c.class_id === appData.activeClassId) || appData.classes[0];
+    }
+
+    function getClassStudents(classId = appData.activeClassId) {
+      return appData.students
+        .filter(s => s.class_id === classId)
+        .sort((a, b) => Number(a.student_no) - Number(b.student_no));
+    }
+
+    function getUnitSortPriority(u) {
+      const name = String(u.unit_name || '');
+      if (u.unit_type === 'final' || name.includes('ปลายภาค')) return 3;
+      if (u.unit_type === 'midterm' || name.includes('กลางภาค')) return 2;
+      return 1; // หน่วยการเรียนรู้ทั่วไปอยู่ด้านหน้าเสมอ
+    }
+
+    function getClassUnits(classId = appData.activeClassId) {
+      return appData.units
+        .filter(u => u.class_id === classId)
+        .sort((a, b) => {
+          const pA = getUnitSortPriority(a);
+          const pB = getUnitSortPriority(b);
+          if (pA !== pB) return pA - pB;
+          return Number(a.unit_order) - Number(b.unit_order);
+        });
+    }
+
+    function getStudentScoreValue(studentId, unitId) {
+      const item = appData.scores.find(s => s.student_id === studentId && s.unit_id === unitId);
+      return item && item.score_value !== '' && item.score_value !== null && item.score_value !== undefined
+        ? item.score_value
+        : '';
+    }
+
+    function setStudentScoreValue(studentId, unitId, rawVal) {
+      const classId = appData.activeClassId;
+      const existing = appData.scores.find(s => s.student_id === studentId && s.unit_id === unitId);
+      const val = rawVal === '' ? '' : Number(rawVal);
+
+      if (existing) {
+        existing.score_value = val;
+        existing.updated_at = new Date().toISOString();
+      } else {
+        appData.scores.push({
+          score_id: `sc_${studentId}_${unitId}`,
+          class_id: classId,
+          student_id: studentId,
+          unit_id: unitId,
+          score_value: val,
+          updated_at: new Date().toISOString()
+        });
+      }
+      saveToLocal();
+    }
+
+    /**
+     * คำนวณคะแนนรวมดิบ, คะแนนสุทธิเต็ม 100, และเกรดเฉลี่ย 8 ระดับของนักเรียน 1 คน
+     */
+    function calculateStudentSummary(studentId, units, scoringMode) {
+      let rawSum = 0;
+      let weightedSum = 0;
+      let totalRawMax = 0;
+      let totalWeightMax = 0;
+
+      units.forEach(u => {
+        const maxRaw = Number(u.max_raw_score || 0);
+        const weight = Number(u.weight_score || maxRaw);
+        totalRawMax += maxRaw;
+        totalWeightMax += weight;
+
+        const val = getStudentScoreValue(studentId, u.unit_id);
+        const num = (val !== '' && !isNaN(Number(val))) ? Number(val) : 0;
+        rawSum += num;
+        if (maxRaw > 0) {
+          weightedSum += (num / maxRaw) * weight;
+        }
+      });
+
+      let net100 = 0;
+      if (scoringMode === 'scale100') {
+        net100 = totalRawMax > 0 ? (rawSum / totalRawMax) * 100 : 0;
+      } else if (scoringMode === 'weighted') {
+        net100 = totalWeightMax > 0 ? (weightedSum / totalWeightMax) * 100 : 0;
+      } else {
+        // direct sum
+        net100 = rawSum;
+      }
+
+      // Clamp to 0..100 for grade calculation
+      const roundedScore = Math.round(net100);
+      const gradeInfo = getThaiGradeInfo(roundedScore);
+
+      return {
+        rawSum,
+        totalRawMax,
+        weightedSum,
+        totalWeightMax,
+        net100,
+        roundedScore,
+        grade: gradeInfo.grade,
+        badgeClass: gradeInfo.badgeClass
+      };
+    }
+
+    function getThaiGradeInfo(score) {
+      if (score >= 80) return { grade: '4',   badgeClass: 'bg-emerald-600 text-white' };
+      if (score >= 75) return { grade: '3.5', badgeClass: 'bg-emerald-100 text-emerald-800 border border-emerald-300' };
+      if (score >= 70) return { grade: '3',   badgeClass: 'bg-sky-100 text-sky-800 border border-sky-300' };
+      if (score >= 65) return { grade: '2.5', badgeClass: 'bg-blue-100 text-blue-800 border border-blue-300' };
+      if (score >= 60) return { grade: '2',   badgeClass: 'bg-indigo-100 text-indigo-800 border border-indigo-300' };
+      if (score >= 55) return { grade: '1.5', badgeClass: 'bg-amber-100 text-amber-800 border border-amber-300' };
+      if (score >= 50) return { grade: '1',   badgeClass: 'bg-orange-100 text-orange-800 border border-orange-300' };
+      return { grade: '0', badgeClass: 'bg-rose-600 text-white' };
+    }
+
+    // ---------------------------------------------------------------------------
+    // 3. RENDER FUNCTIONS
+    // ---------------------------------------------------------------------------
+    function renderTeacherTitle() {
+      const teacherName = (appData.teacherDisplayName || (currentSessionUser && currentSessionUser.displayName) || 'ครูนรินทร์ อนงค์ชัย').trim();
+      const fullTitle = `ระบบติดตามคะแนนการเรียน ${teacherName} ออนไลน์ (Realtime Class Scoring)`;
+      document.title = fullTitle;
+      const headingEl = document.getElementById('mainAppHeading');
+      if (headingEl) {
+        headingEl.textContent = fullTitle;
+      }
+    }
+
+    function renderAll() {
+      const cls = getCurrentClass();
+      if (!cls) return;
+      appData.activeClassId = cls.class_id;
+
+      renderTeacherTitle();
+      renderOwnerStatusUI();
+      document.getElementById('scoringModeSelect').value = cls.scoring_mode || 'scale100';
+
+      renderSummaryStats();
+      renderGradebookTable();
+      renderUnitsManager();
+      renderStudentRoster();
+      lucide.createIcons();
+    }
+
+    function getSubjectConfig() {
+      const c = getCurrentClass() || {};
+      if (!appData.subjectConfig) {
+        appData.subjectConfig = {
+          subject_code: c.subject_code || 'อ23102',
+          subject_name: c.subject_name || 'ภาษาอังกฤษพื้นฐาน',
+          grade_level: c.grade_level || 'ม.3',
+          room_name: c.room_name || 'ห้อง 1 (ม.3/1)',
+          semester: c.semester || '2',
+          academic_year: c.academic_year || '2569'
+        };
+      }
+      return appData.subjectConfig;
+    }
+
+    function renderSummaryStats() {
+      const cls = getCurrentClass();
+      const subj = getSubjectConfig();
+      const students = getClassStudents();
+      const units = getClassUnits();
+      const totalRawMax = units.reduce((acc, u) => acc + Number(u.max_raw_score || 0), 0);
+      const totalWeightMax = units.reduce((acc, u) => acc + Number(u.weight_score || u.max_raw_score || 0), 0);
+
+      const gradeRoomText = `ชั้น ${cls.grade_level || subj.grade_level || 'ม.3'} ${cls.room_name || subj.room_name || 'ห้อง 1'}`;
+      const subjLabel = `${subj.subject_code ? subj.subject_code + ' ' : ''}${subj.subject_name} (เทอม ${subj.semester}/${subj.academic_year})`;
+      const headerBadge = document.getElementById('subjectHeaderBadge');
+      if (headerBadge) {
+        headerBadge.textContent = `${subj.subject_code ? subj.subject_code + ' ' : ''}${subj.subject_name} • ${gradeRoomText} • ภาคเรียนที่ ${subj.semester}/${subj.academic_year}`;
+      }
+
+      document.getElementById('statClassName').textContent = gradeRoomText;
+      document.getElementById('statSubjectName').textContent = subjLabel;
+      document.getElementById('statStudentCount').textContent = students.length;
+      document.getElementById('statUnitCount').textContent = units.length;
+      document.getElementById('statMaxScoreSub').textContent = `คะแนนดิบรวม ${totalRawMax} → ตัดเต็ม 100`;
+
+      // Print Header
+      document.getElementById('printHeaderTitle').textContent = `ตารางสรุปคะแนนประจำวิชา ${subj.subject_code || ''} ${subj.subject_name} (ตัดคะแนนเต็ม 100)`;
+      document.getElementById('printHeaderSubtitle').textContent = `ระดับชั้น ${cls.grade_level} ${cls.room_name} | ภาคเรียนที่ ${subj.semester} ปีการศึกษา ${subj.academic_year} | นักเรียนทั้งหมด ${students.length} คน`;
+
+      // Formula explanation text
+      const formulaEl = document.getElementById('formulaText');
+      if (cls.scoring_mode === 'scale100') {
+        formulaEl.innerHTML = `<strong>สูตรตัดคะแนนเต็ม 100:</strong> (คะแนนดิบรวมที่ได้ ÷ คะแนนดิบเต็มรวม ${totalRawMax} คะแนน) × 100`;
+      } else if (cls.scoring_mode === 'weighted') {
+        formulaEl.innerHTML = `<strong>สูตรถ่วงน้ำหนัก (Weight):</strong> คำนวณตามน้ำหนักแต่ละหน่วย (รวมน้ำหนัก ${totalWeightMax}) แล้วปรับเป็นเต็ม 100`;
+      } else {
+        formulaEl.innerHTML = `<strong>สูตรรวมคะแนนตรงๆ:</strong> นำคะแนนทุกหน่วยมารวมกันโดยตรง (คะแนนเต็มรวมปัจจุบัน = ${totalRawMax} คะแนน)`;
+      }
+
+      if (students.length === 0) {
+        document.getElementById('statAvg100').textContent = '0.00';
+        document.getElementById('statHighLow').textContent = 'สูงสุด: 0 | ต่ำสุด: 0';
+        document.getElementById('statPassCount').textContent = '0';
+        document.getElementById('statGrade4Count').textContent = 'ได้เกรด 4 จำนวน 0 คน';
+        return;
+      }
+
+      const netScores = students.map(s => calculateStudentSummary(s.student_id, units, cls.scoring_mode).net100);
+      const sumNet = netScores.reduce((a, b) => a + b, 0);
+      const avgNet = sumNet / students.length;
+      const maxNet = Math.max(...netScores);
+      const minNet = Math.min(...netScores);
+      const passCount = netScores.filter(v => Math.round(v) >= 50).length;
+      const grade4Count = netScores.filter(v => Math.round(v) >= 80).length;
+
+      document.getElementById('statAvg100').textContent = avgNet.toFixed(2);
+      document.getElementById('statHighLow').textContent = `สูงสุด: ${maxNet.toFixed(1)} | ต่ำสุด: ${minNet.toFixed(1)}`;
+      document.getElementById('statPassCount').textContent = `${passCount} / ${students.length}`;
+      document.getElementById('statGrade4Count').textContent = `ได้เกรด 4 จำนวน ${grade4Count} คน`;
+    }
+
+    function renderGradebookTable() {
+      const cls = getCurrentClass();
+      const allStudents = getClassStudents();
+      const units = getClassUnits();
+      const searchQ = (document.getElementById('searchStudentInput').value || '').trim().toLowerCase();
+      const filterMode = document.getElementById('filterGradeSelect').value;
+
+      const totalRawMax = units.reduce((acc, u) => acc + Number(u.max_raw_score || 0), 0);
+
+      // Build THEAD
+      const thead = document.getElementById('gradebookThead');
+      let unitHeadersHtml = units.map((u, idx) => {
+        const typeColor = u.unit_type === 'midterm' ? 'bg-amber-600' : (u.unit_type === 'final' ? 'bg-purple-700' : 'bg-slate-700');
+        const weightNote = cls.scoring_mode === 'weighted' ? `<span class="block text-[10px] text-emerald-300 font-normal">ตัด ${u.weight_score} คะแนน</span>` : '';
+        const actCount = getUnitActivities(u.unit_id).length;
+        const actBadgeHtml = actCount > 0
+          ? `<span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-emerald-400/20 text-emerald-200 border border-emerald-300/30 text-[10px] font-semibold mt-0.5"><i data-lucide="list-checks" class="w-3 h-3"></i>${actCount} กิจกรรมย่อย</span>`
+          : `<span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-white/10 text-blue-200 hover:bg-white/20 text-[10px] font-normal mt-0.5">+ คลิกเพิ่มกิจกรรมย่อย</span>`;
+
+        return `
+          <th class="py-2.5 px-2.5 text-center border-l border-slate-700 min-w-[135px] ${typeColor} transition">
+            <div class="flex flex-col items-center gap-0.5">
+              <div class="flex items-center gap-1">
+                <button
+                  type="button"
+                  onclick="openUnitActivitiesModal('${u.unit_id}')"
+                  class="font-bold text-white hover:text-amber-300 underline decoration-dotted underline-offset-4 line-clamp-1 cursor-pointer text-left"
+                  title="คลิกเพื่อเปิดหน้าต่างเก็บคะแนนรายกิจกรรมของ ${escapeHtml(u.unit_name)}"
+                >
+                  ${escapeHtml(u.unit_name)}
+                </button>
+                <button onclick="openUnitModal('${u.unit_id}')" class="no-print text-slate-300 hover:text-amber-300 p-0.5" title="แก้ไขชื่อ/คะแนนเต็มหน่วย">
+                  <i data-lucide="settings-2" class="w-3 h-3"></i>
+                </button>
+              </div>
+              <span class="inline-block px-2 py-0.5 rounded bg-black/25 text-amber-300 text-[11px] font-semibold">
+                เต็ม ${u.max_raw_score}
+              </span>
+              ${weightNote}
+              <button type="button" onclick="openUnitActivitiesModal('${u.unit_id}')" class="no-print cursor-pointer">
+                ${actBadgeHtml}
+              </button>
+            </div>
+          </th>
+        `;
+      }).join('');
+
+      thead.innerHTML = `
+        <tr>
+          <th class="py-3 px-1 text-center bg-slate-900 sticky-col-no">เลขที่</th>
+          <th class="py-3 px-2.5 text-left bg-slate-900 sticky-col-name">ชื่อ - นามสกุล</th>
+          ${unitHeadersHtml}
+          <th class="py-3 px-3 text-center bg-slate-800 border-l border-slate-700 min-w-[105px]">
+            <div>คะแนนดิบรวม</div>
+            <div class="text-[11px] text-slate-300 font-normal">(เต็ม ${totalRawMax})</div>
+          </th>
+          <th class="py-3 px-3 text-center bg-brand-700 border-l border-brand-600 min-w-[125px]">
+            <div class="text-amber-300 font-bold">คะแนนสุทธิ</div>
+            <div class="text-[11px] text-white font-semibold">(ตัดเต็ม 100)</div>
+          </th>
+          <th class="py-3 px-3 text-center bg-slate-900 border-l border-slate-700 w-24">
+            <div>เกรด</div>
+            <div class="text-[10px] text-slate-400 font-normal">(0 - 4)</div>
+          </th>
+        </tr>
+      `;
+
+      // Filter Students
+      const filteredStudents = allStudents.filter(st => {
+        const fullName = `${st.prefix || ''}${st.first_name || ''} ${st.last_name || ''}`.toLowerCase();
+        const noStr = String(st.student_no || '');
+        const matchSearch = !searchQ || fullName.includes(searchQ) || noStr === searchQ;
+        if (!matchSearch) return false;
+
+        if (filterMode === 'all') return true;
+        const summary = calculateStudentSummary(st.student_id, units, cls.scoring_mode);
+        if (filterMode === 'pass') return summary.roundedScore >= 50;
+        if (filterMode === 'fail') return summary.roundedScore < 50;
+        if (filterMode === 'grade4') return summary.roundedScore >= 80;
+        return true;
+      });
+
+      const tbody = document.getElementById('gradebookTbody');
+      if (filteredStudents.length === 0) {
+        tbody.innerHTML = `
+          <tr>
+            <td colspan="${units.length + 5}" class="py-12 text-center text-slate-400">
+              ไม่มีรายชื่อนักเรียนที่ตรงกับเงื่อนไข หรือยังไม่ได้เพิ่มนักเรียนในห้องนี้
+            </td>
+          </tr>
+        `;
+      } else {
+        tbody.innerHTML = filteredStudents.map((st, rowIdx) => {
+          const summary = calculateStudentSummary(st.student_id, units, cls.scoring_mode);
+          const fullName = `${st.prefix || ''}${st.first_name || ''} ${st.last_name || ''}`.trim();
+          const rowBg = rowIdx % 2 === 0 ? 'bg-white' : 'bg-slate-50/80';
+
+          const unitCells = units.map((u, colIdx) => {
+            const val = getStudentScoreValue(st.student_id, u.unit_id);
+            const maxRaw = Number(u.max_raw_score || 0);
+            const isOverMax = val !== '' && Number(val) > maxRaw;
+            const hasSubActivities = getUnitActivities(u.unit_id).length > 0;
+            const canEdit = isCurrentUserAuthorized();
+
+            return `
+              <td class="p-1.5 text-center border-l border-slate-200">
+                <div class="inline-flex items-center justify-center gap-1">
+                  <input
+                    type="number"
+                    step="any"
+                    min="0"
+                    max="${maxRaw}"
+                    data-row="${rowIdx}"
+                    data-col="${colIdx}"
+                    data-student="${st.student_id}"
+                    data-unit="${u.unit_id}"
+                    data-max="${maxRaw}"
+                    value="${val}"
+                    placeholder="-"
+                    ${canEdit ? '' : 'readonly onclick="requireOwnerPermission()"'}
+                    oninput="handleScoreCellInput(this)"
+                    onkeydown="handleScoreCellKeydown(event, ${rowIdx}, ${colIdx})"
+                    class="score-input w-20 px-2 py-1.5 text-center rounded-lg border ${!canEdit ? 'bg-slate-100 text-slate-500 cursor-not-allowed border-slate-200' : (isOverMax ? 'border-rose-500 bg-rose-50 text-rose-700' : (hasSubActivities ? 'border-emerald-300 bg-emerald-50/40 focus:bg-white focus:border-brand-500' : 'border-slate-200 bg-slate-50/70 focus:bg-white focus:border-brand-500'))} font-semibold text-slate-800 focus:outline-none focus:ring-2 focus:ring-brand-500/30 transition"
+                    title="${!canEdit ? 'กรุณาลงชื่อแก้ไขก่อนทำการแก้ไขข้อมูล' : (hasSubActivities ? 'คำนวณจากกิจกรรมย่อย (คลิกชื่อหน่วยด้านบนเพื่อดูรายละเอียด หรือพิมพ์แก้ไขได้)' : '')}"
+                  />
+                </div>
+              </td>
+            `;
+          }).join('');
+
+          return `
+            <tr id="stuRow_${st.student_id}" class="${rowBg} hover:bg-blue-50/50 transition">
+              <td class="py-2.5 px-1 text-center font-bold text-slate-700 ${rowBg} sticky-col-no">${st.student_no}</td>
+              <td class="py-2.5 px-2.5 font-medium text-slate-800 ${rowBg} sticky-col-name truncate" title="${escapeHtml(fullName)}">${escapeHtml(fullName)}</td>
+              ${unitCells}
+              <td id="rawSumCell_${st.student_id}" class="py-2.5 px-3 text-center font-semibold text-slate-700 border-l border-slate-200 bg-slate-100/60">
+                ${formatScoreNum(summary.rawSum)} <span class="text-[11px] text-slate-400 font-normal">/ ${totalRawMax}</span>
+              </td>
+              <td id="net100Cell_${st.student_id}" class="py-2.5 px-3 text-center font-bold text-base text-brand-700 border-l border-blue-200 bg-blue-50/60">
+                ${summary.net100.toFixed(2)}
+              </td>
+              <td id="gradeCell_${st.student_id}" class="py-2.5 px-3 text-center border-l border-slate-200">
+                <span class="inline-flex items-center justify-center min-w-[42px] px-2.5 py-1 rounded-lg text-xs font-bold ${summary.badgeClass}">
+                  ${summary.grade}
+                </span>
+              </td>
+            </tr>
+          `;
+        }).join('');
+      }
+
+      renderGradebookFooter(filteredStudents, units, cls.scoring_mode, totalRawMax);
+      lucide.createIcons();
+    }
+
+    function renderGradebookFooter(students, units, scoringMode, totalRawMax) {
+      const tfoot = document.getElementById('gradebookTfoot');
+      if (students.length === 0) {
+        tfoot.innerHTML = '';
+        return;
+      }
+
+      const unitAvgCells = units.map(u => {
+        const vals = students.map(s => {
+          const v = getStudentScoreValue(s.student_id, u.unit_id);
+          return v !== '' && !isNaN(Number(v)) ? Number(v) : 0;
+        });
+        const avg = vals.reduce((a, b) => a + b, 0) / students.length;
+        return `<td class="py-3 px-2 text-center border-l border-slate-300">${avg.toFixed(2)}</td>`;
+      }).join('');
+
+      const summaries = students.map(s => calculateStudentSummary(s.student_id, units, scoringMode));
+      const avgRaw = summaries.reduce((a, b) => a + b.rawSum, 0) / students.length;
+      const avgNet100 = summaries.reduce((a, b) => a + b.net100, 0) / students.length;
+      const avgGrade = getThaiGradeInfo(Math.round(avgNet100));
+
+      tfoot.innerHTML = `
+        <tr>
+          <td colspan="2" class="py-3 px-3 text-right font-bold text-slate-700 bg-slate-100 sticky-col-footer">ค่าเฉลี่ย (${students.length} คน):</td>
+          ${unitAvgCells}
+          <td class="py-3 px-3 text-center border-l border-slate-300">${avgRaw.toFixed(2)} / ${totalRawMax}</td>
+          <td class="py-3 px-3 text-center font-bold text-brand-800 bg-blue-100/70 border-l border-blue-300">${avgNet100.toFixed(2)} / 100</td>
+          <td class="py-3 px-3 text-center border-l border-slate-300">
+            <span class="inline-flex items-center justify-center px-2 py-0.5 rounded text-xs font-bold ${avgGrade.badgeClass}">เฉลี่ย ${avgGrade.grade}</span>
+          </td>
+        </tr>
+      `;
+    }
+
+    // Fast inline score input handler without re-rendering full DOM (keeps cursor focus)
+    function handleScoreCellInput(inputEl) {
+      if (!requireOwnerPermission()) return;
+      const studentId = inputEl.dataset.student;
+      const unitId = inputEl.dataset.unit;
+      const maxScore = Number(inputEl.dataset.max || 100);
+      let rawVal = inputEl.value;
+
+      if (rawVal !== '' && Number(rawVal) > maxScore) {
+        showToast(`คะแนนเกินคะแนนเต็มของหน่วยนี้ (เต็ม ${maxScore})`, 'warning');
+        inputEl.value = maxScore;
+        rawVal = String(maxScore);
+      }
+      if (rawVal !== '' && Number(rawVal) < 0) {
+        inputEl.value = 0;
+        rawVal = '0';
+      }
+
+      setStudentScoreValue(studentId, unitId, rawVal);
+
+      // Update row summary cells immediately
+      const cls = getCurrentClass();
+      const units = getClassUnits();
+      const summary = calculateStudentSummary(studentId, units, cls.scoring_mode);
+
+      const rawCell = document.getElementById(`rawSumCell_${studentId}`);
+      const netCell = document.getElementById(`net100Cell_${studentId}`);
+      const gradeCell = document.getElementById(`gradeCell_${studentId}`);
+
+      if (rawCell) {
+        rawCell.innerHTML = `${formatScoreNum(summary.rawSum)} <span class="text-[11px] text-slate-400 font-normal">/ ${summary.totalRawMax}</span>`;
+      }
+      if (netCell) {
+        netCell.textContent = summary.net100.toFixed(2);
+      }
+      if (gradeCell) {
+        gradeCell.innerHTML = `<span class="inline-flex items-center justify-center min-w-[42px] px-2.5 py-1 rounded-lg text-xs font-bold ${summary.badgeClass}">${summary.grade}</span>`;
+      }
+
+      renderSummaryStats();
+      renderGradebookFooter(getClassStudents(), units, cls.scoring_mode, summary.totalRawMax);
+    }
+
+    function handleScoreCellKeydown(e, rowIdx, colIdx) {
+      let targetRow = rowIdx;
+      let targetCol = colIdx;
+
+      if (e.key === 'Enter' || e.key === 'ArrowDown') {
+        e.preventDefault();
+        targetRow = rowIdx + 1;
+      } else if (e.key === 'ArrowUp') {
+        e.preventDefault();
+        targetRow = rowIdx - 1;
+      } else {
+        return;
+      }
+
+      const nextInput = document.querySelector(`input.score-input[data-row="${targetRow}"][data-col="${targetCol}"]`);
+      if (nextInput) {
+        nextInput.focus();
+        nextInput.select();
+      }
+    }
+
+    // ---------------------------------------------------------------------------
+    // 4. UNIT MANAGER RENDER & ACTIONS
+    // ---------------------------------------------------------------------------
+    function renderUnitsManager() {
+      const cls = getCurrentClass();
+      const units = getClassUnits();
+      const totalRaw = units.reduce((acc, u) => acc + Number(u.max_raw_score || 0), 0);
+      const totalWeight = units.reduce((acc, u) => acc + Number(u.weight_score || u.max_raw_score || 0), 0);
+
+      document.getElementById('unitTotalSummaryLabel').textContent =
+        `รวม ${units.length} หน่วย | คะแนนดิบรวม ${totalRaw} คะแนน | น้ำหนักรวม ${formatScoreNum(totalWeight)} → ตัดเป็น 100 คะแนนสุทธิ`;
+
+      // Render Proportion Bar
+      const colors = ['bg-blue-600', 'bg-indigo-600', 'bg-emerald-600', 'bg-amber-500', 'bg-purple-600', 'bg-rose-600', 'bg-cyan-600', 'bg-teal-600'];
+      const barEl = document.getElementById('unitProportionBar');
+      if (units.length === 0) {
+        barEl.innerHTML = `<div class="w-full flex items-center justify-center text-slate-500">ยังไม่มีหน่วยเก็บคะแนน</div>`;
+      } else {
+        barEl.innerHTML = units.map((u, i) => {
+          const baseVal = cls.scoring_mode === 'weighted' ? Number(u.weight_score || 0) : Number(u.max_raw_score || 0);
+          const denom = cls.scoring_mode === 'weighted' ? totalWeight : totalRaw;
+          const pct = denom > 0 ? (baseVal / denom) * 100 : 0;
+          return `
+            <div style="width:${pct.toFixed(2)}%" class="${colors[i % colors.length]} flex items-center justify-center px-1 truncate border-r border-white/20" title="${escapeHtml(u.unit_name)}: ${pct.toFixed(1)}%">
+              ${pct >= 7 ? `${escapeHtml(u.unit_name)} (${pct.toFixed(0)}%)` : ''}
+            </div>
+          `;
+        }).join('');
+      }
+
+      const typeBadges = {
+        formative: '<span class="px-2.5 py-1 rounded-full text-xs font-semibold bg-blue-50 text-blue-700 border border-blue-200">คะแนนเก็บรายหน่วย</span>',
+        midterm: '<span class="px-2.5 py-1 rounded-full text-xs font-semibold bg-amber-50 text-amber-700 border border-amber-200">สอบกลางภาค</span>',
+        final: '<span class="px-2.5 py-1 rounded-full text-xs font-semibold bg-purple-50 text-purple-700 border border-purple-200">สอบปลายภาค</span>'
+      };
+
+      const tbody = document.getElementById('unitsManagerTbody');
+      tbody.innerHTML = units.map((u, idx) => {
+        const baseVal = cls.scoring_mode === 'weighted' ? Number(u.weight_score || 0) : Number(u.max_raw_score || 0);
+        const denom = cls.scoring_mode === 'weighted' ? totalWeight : totalRaw;
+        const pct = denom > 0 ? (baseVal / denom) * 100 : 0;
+
+        const actCount = getUnitActivities(u.unit_id).length;
+        return `
+          <tr class="hover:bg-slate-50">
+            <td class="py-3 px-4 text-center font-bold text-slate-600">${idx + 1}</td>
+            <td class="py-3 px-4">
+              <div class="flex items-center gap-2 flex-wrap">
+                <button type="button" onclick="openUnitActivitiesModal('${u.unit_id}')" class="font-semibold text-brand-700 hover:text-brand-900 hover:underline text-left">
+                  ${escapeHtml(u.unit_name)}
+                </button>
+                <button type="button" onclick="openUnitActivitiesModal('${u.unit_id}')" class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-semibold ${actCount > 0 ? 'bg-emerald-50 text-emerald-700 border border-emerald-200' : 'bg-slate-100 text-slate-600 border border-slate-200 hover:bg-blue-50 hover:text-brand-700'}">
+                  <i data-lucide="list-checks" class="w-3 h-3"></i>
+                  <span>${actCount > 0 ? `${actCount} กิจกรรมย่อย` : '+ เพิ่มกิจกรรมย่อย'}</span>
+                </button>
+              </div>
+            </td>
+            <td class="py-3 px-4 text-center">${typeBadges[u.unit_type] || typeBadges.formative}</td>
+            <td class="py-3 px-4 text-center">
+              <input type="number" min="1" step="any" value="${u.max_raw_score}"
+                onchange="quickUpdateUnitField('${u.unit_id}', 'max_raw_score', this.value)"
+                class="w-24 px-2.5 py-1.5 text-center rounded-lg border border-slate-300 font-bold text-brand-700" />
+            </td>
+            <td class="py-3 px-4 text-center">
+              <input type="number" min="1" step="any" value="${u.weight_score || u.max_raw_score}"
+                onchange="quickUpdateUnitField('${u.unit_id}', 'weight_score', this.value)"
+                class="w-24 px-2.5 py-1.5 text-center rounded-lg border border-slate-300 font-bold text-emerald-700" />
+            </td>
+            <td class="py-3 px-4 text-center font-bold text-slate-700">${pct.toFixed(1)}%</td>
+            <td class="py-3 px-4 text-center">
+              <div class="inline-flex items-center gap-1">
+                <button onclick="openUnitActivitiesModal('${u.unit_id}')" class="p-1.5 rounded-lg hover:bg-blue-100 text-brand-600" title="จัดการคะแนนรายกิจกรรมย่อย">
+                  <i data-lucide="clipboard-list" class="w-4 h-4"></i>
+                </button>
+                <button onclick="openUnitModal('${u.unit_id}')" class="p-1.5 rounded-lg hover:bg-slate-200 text-slate-600" title="แก้ไขหน่วย">
+                  <i data-lucide="edit-2" class="w-4 h-4"></i>
+                </button>
+                <button onclick="deleteUnit('${u.unit_id}')" class="p-1.5 rounded-lg hover:bg-rose-100 text-rose-600" title="ลบหน่วยนี้">
+                  <i data-lucide="trash-2" class="w-4 h-4"></i>
+                </button>
+              </div>
+            </td>
+          </tr>
+        `;
+      }).join('');
+    }
+
+    function quickUpdateUnitField(unitId, field, value) {
+      if (!requireOwnerPermission()) { renderAll(); return; }
+      const unit = appData.units.find(u => u.unit_id === unitId);
+      if (!unit) return;
+      unit[field] = Number(value) || 1;
+      saveToLocal();
+      renderAll();
+      showToast('อัปเดตคะแนนของหน่วยเรียบร้อยแล้ว', 'success');
+    }
+
+    function autoDistributeWeights() {
+      if (!requireOwnerPermission()) return;
+      const units = getClassUnits();
+      if (units.length === 0) return;
+      const totalRaw = units.reduce((acc, u) => acc + Number(u.max_raw_score || 0), 0);
+      if (totalRaw <= 0) return;
+
+      let running = 0;
+      units.forEach((u, i) => {
+        if (i === units.length - 1) {
+          u.weight_score = Number((100 - running).toFixed(1));
+        } else {
+          const w = Number(((Number(u.max_raw_score) / totalRaw) * 100).toFixed(1));
+          u.weight_score = w;
+          running += w;
+        }
+      });
+      saveToLocal();
+      renderAll();
+      showToast('คำนวณสัดส่วนน้ำหนักทุกหน่วยให้รวมเท่ากับ 100 คะแนนเรียบร้อยแล้ว', 'success');
+    }
+
+    // ---------------------------------------------------------------------------
+    // 5. STUDENT ROSTER & BULK IMPORT
+    // ---------------------------------------------------------------------------
+    function renderStudentRoster() {
+      const students = getClassStudents();
+      const tbody = document.getElementById('studentRosterTbody');
+
+      // Suggest next student number
+      document.getElementById('addStuNo').value = students.length + 1;
+
+      if (students.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="3" class="py-8 text-center text-slate-400">ยังไม่มีรายชื่อนักเรียนในห้องนี้</td></tr>`;
+        return;
+      }
+
+      tbody.innerHTML = students.map(st => {
+        const fullName = `${st.prefix || ''}${st.first_name || ''} ${st.last_name || ''}`.trim();
+        return `
+          <tr class="hover:bg-slate-50">
+            <td class="py-2 px-3 text-center">
+              <input type="number" value="${st.student_no}" onchange="updateStudentField('${st.student_id}', 'student_no', this.value)"
+                class="w-16 px-2 py-1 text-center rounded border border-slate-200 font-bold text-slate-700" />
+            </td>
+            <td class="py-2 px-3">
+              <input type="text" value="${escapeHtml(fullName)}" onchange="updateStudentFullName('${st.student_id}', this.value)"
+                class="w-full px-2.5 py-1 rounded border border-slate-200 font-medium text-slate-800" />
+            </td>
+            <td class="py-2 px-3 text-center">
+              <button onclick="deleteStudent('${st.student_id}')" class="p-1.5 rounded-lg hover:bg-rose-50 text-rose-600" title="ลบรายชื่อนี้">
+                <i data-lucide="trash-2" class="w-4 h-4"></i>
+              </button>
+            </td>
+          </tr>
+        `;
+      }).join('');
+    }
+
+    function handleAddSingleStudent(e) {
+      e.preventDefault();
+      if (!requireOwnerPermission()) return;
+      const no = Number(document.getElementById('addStuNo').value) || 1;
+      const prefix = document.getElementById('addStuPrefix').value;
+      const rawName = document.getElementById('addStuFullName').value.trim();
+      if (!rawName) return;
+
+      const parts = rawName.split(/\s+/);
+      const firstName = parts[0] || '';
+      const lastName = parts.slice(1).join(' ') || '';
+
+      appData.students.push({
+        student_id: 'stu_' + Date.now() + '_' + Math.random().toString(36).substring(2, 6),
+        class_id: appData.activeClassId,
+        student_no: no,
+        student_code: '',
+        prefix: prefix,
+        first_name: firstName,
+        last_name: lastName,
+        status: 'active'
+      });
+
+      document.getElementById('addStuFullName').value = '';
+
+      saveToLocal();
+      renderAll();
+      showToast(`เพิ่มรายชื่อ "${prefix}${rawName}" เรียบร้อยแล้ว`, 'success');
+    }
+
+    function updateStudentField(studentId, field, value) {
+      if (!requireOwnerPermission()) { renderAll(); return; }
+      const st = appData.students.find(s => s.student_id === studentId);
+      if (!st) return;
+      st[field] = field === 'student_no' ? Number(value) : value;
+      saveToLocal();
+      renderAll();
+    }
+
+    function updateStudentFullName(studentId, fullText) {
+      if (!requireOwnerPermission()) { renderAll(); return; }
+      const st = appData.students.find(s => s.student_id === studentId);
+      if (!st) return;
+      const parsed = parseThaiName(fullText);
+      st.prefix = parsed.prefix;
+      st.first_name = parsed.first_name;
+      st.last_name = parsed.last_name;
+      saveToLocal();
+      renderAll();
+    }
+
+    function parseThaiName(raw) {
+      const clean = raw.trim();
+      const prefixes = ['ด.ช.', 'ด.ญ.', 'เด็กชาย', 'เด็กหญิง', 'นาย', 'นางสาว', 'น.ส.'];
+      let prefix = '';
+      let rest = clean;
+      for (const p of prefixes) {
+        if (clean.startsWith(p)) {
+          prefix = p === 'เด็กชาย' ? 'ด.ช.' : (p === 'เด็กหญิง' ? 'ด.ญ.' : (p === 'นางสาว' ? 'น.ส.' : p));
+          rest = clean.slice(p.length).trim();
+          break;
+        }
+      }
+      const parts = rest.split(/\s+/);
+      return {
+        prefix,
+        first_name: parts[0] || '',
+        last_name: parts.slice(1).join(' ') || ''
+      };
+    }
+
+    function openBulkImportModal() {
+      if (!requireOwnerPermission()) return;
+      openModal('modalBulkImport');
+    }
+
+    function fillSampleStudentImportText() {
+      document.getElementById('bulkImportTextarea').value =
+`1\tด.ช.กฤตภาส เลิศล้ำ
+2\tด.ช.ชยพล มั่นคง
+3\tด.ช.ธีรภัทร สุขสวัสดิ์
+4\tด.ญ.กมลชนก ใจงาม
+5\tด.ญ.นภัสสร สว่างจิต`;
+    }
+
+    function handleCSVFileUpload(event) {
+      const file = event.target.files[0];
+      if (!file) return;
+      const reader = new FileReader();
+      reader.onload = function(e) {
+        document.getElementById('bulkImportTextarea').value = e.target.result;
+      };
+      reader.readAsText(file, 'UTF-8');
+    }
+
+    function processBulkStudentImport() {
+      if (!requireOwnerPermission()) return;
+      const rawText = document.getElementById('bulkImportTextarea').value.trim();
+      if (!rawText) {
+        showToast('กรุณาวางรายชื่อนักเรียนก่อนกดนำเข้า', 'warning');
+        return;
+      }
+
+      const replaceExisting = document.getElementById('bulkReplaceExisting').checked;
+      if (replaceExisting) {
+        appData.students = appData.students.filter(s => s.class_id !== appData.activeClassId);
+        appData.scores = appData.scores.filter(sc => sc.class_id !== appData.activeClassId);
+      }
+
+      const existingCount = getClassStudents().length;
+      const lines = rawText.split(/\r?\n/).map(l => l.trim()).filter(Boolean);
+      let importedCount = 0;
+
+      lines.forEach((line, idx) => {
+        // Skip header line if detected
+        if (idx === 0 && (line.includes('รหัสนักเรียน') || line.toLowerCase().includes('student_code'))) {
+          return;
+        }
+
+        const cols = line.split(/[\t,]/).map(c => c.trim()).filter(Boolean);
+        let stuNo = existingCount + importedCount + 1;
+        let stuCode = '';
+        let nameStr = '';
+
+        if (cols.length >= 3 && !isNaN(Number(cols[0]))) {
+          stuNo = Number(cols[0]);
+          stuCode = cols[1];
+          nameStr = cols.slice(2).join(' ');
+        } else if (cols.length === 2) {
+          if (!isNaN(Number(cols[0])) && cols[0].length <= 3) {
+            stuNo = Number(cols[0]);
+            nameStr = cols[1];
+          } else {
+            stuCode = cols[0];
+            nameStr = cols[1];
+          }
+        } else {
+          nameStr = cols.join(' ');
+        }
+
+        const parsed = parseThaiName(nameStr);
+        if (parsed.first_name) {
+          appData.students.push({
+            student_id: 'stu_' + Date.now() + '_' + idx + '_' + Math.random().toString(36).substring(2, 5),
+            class_id: appData.activeClassId,
+            student_no: stuNo,
+            student_code: stuCode,
+            prefix: parsed.prefix,
+            first_name: parsed.first_name,
+            last_name: parsed.last_name,
+            status: 'active'
+          });
+          importedCount++;
+        }
+      });
+
+      document.getElementById('bulkImportTextarea').value = '';
+      closeModal('modalBulkImport');
+      saveToLocal();
+      renderAll();
+      showToast(`นำเข้ารายชื่อนักเรียนสำเร็จ ${importedCount} คน!`, 'success');
+    }
+
+    function renumberStudents() {
+      if (!requireOwnerPermission()) return;
+      const students = getClassStudents();
+      students.forEach((s, i) => {
+        s.student_no = i + 1;
+      });
+      saveToLocal();
+      renderAll();
+      showToast('เรียงลำดับเลขที่ 1 ถึง ' + students.length + ' เรียบร้อยแล้ว', 'success');
+    }
+
+    function deleteStudent(studentId) {
+      if (!requireOwnerPermission()) return;
+      if (!confirm('ต้องการลบรายชื่อนักเรียนคนนี้และคะแนนของเขาใช่หรือไม่?')) return;
+      appData.students = appData.students.filter(s => s.student_id !== studentId);
+      appData.scores = appData.scores.filter(sc => sc.student_id !== studentId);
+      saveToLocal();
+      renderAll();
+      showToast('ลบรายชื่อนักเรียนแล้ว', 'info');
+    }
+
+    function clearAllStudentsInClass() {
+      if (!requireOwnerPermission()) return;
+      if (!confirm('ยืนยันการล้างรายชื่อนักเรียนและคะแนนทั้งหมดในห้องเรียนนี้?')) return;
+      appData.students = appData.students.filter(s => s.class_id !== appData.activeClassId);
+      appData.scores = appData.scores.filter(sc => sc.class_id !== appData.activeClassId);
+      saveToLocal();
+      renderAll();
+      showToast('ล้างรายชื่อนักเรียนในห้องนี้เรียบร้อยแล้ว', 'info');
+    }
+
+    // ---------------------------------------------------------------------------
+    // 6. CLASS & UNIT MODAL HANDLERS
+    // ---------------------------------------------------------------------------
+    function selectClass(classId) {
+      appData.activeClassId = classId;
+      saveToLocal();
+      renderAll();
+    }
+
+    function changeScoringMode(mode) {
+      if (!requireOwnerPermission()) { renderAll(); return; }
+      const cls = getCurrentClass();
+      if (!cls) return;
+      cls.scoring_mode = mode;
+      saveToLocal();
+      renderAll();
+      showToast('เปลี่ยนวิธีคำนวณตัดคะแนนเต็ม 100 เรียบร้อยแล้ว', 'success');
+    }
+
+    function openSubjectSettingsModal() {
+      if (!requireOwnerPermission()) return;
+      const cls = getCurrentClass() || {};
+      const subj = getSubjectConfig();
+      document.getElementById('subjectCodeInput').value = cls.subject_code || subj.subject_code || '';
+      document.getElementById('subjectNameInput').value = cls.subject_name || subj.subject_name || '';
+      document.getElementById('subjectGradeInput').value = cls.grade_level || subj.grade_level || 'ม.3';
+      document.getElementById('subjectRoomInput').value = cls.room_name || subj.room_name || 'ห้อง 1 (ม.3/1)';
+      document.getElementById('subjectSemesterInput').value = cls.semester || subj.semester || '2';
+      document.getElementById('subjectAcademicYearInput').value = cls.academic_year || subj.academic_year || '2569';
+      openModal('modalSubjectSettings');
+      lucide.createIcons();
+    }
+
+    function handleSaveSubjectSettings(e) {
+      e.preventDefault();
+      if (!requireOwnerPermission()) return;
+      const subject_code = document.getElementById('subjectCodeInput').value.trim();
+      const subject_name = document.getElementById('subjectNameInput').value.trim();
+      const grade_level = document.getElementById('subjectGradeInput').value.trim();
+      const room_name = document.getElementById('subjectRoomInput').value.trim();
+      const semester = document.getElementById('subjectSemesterInput').value;
+      const academic_year = document.getElementById('subjectAcademicYearInput').value.trim();
+
+      appData.subjectConfig = { subject_code, subject_name, grade_level, room_name, semester, academic_year };
+      const cls = getCurrentClass();
+      if (cls) {
+        Object.assign(cls, {
+          subject_code,
+          subject_name,
+          grade_level,
+          room_name,
+          semester,
+          academic_year,
+          updated_at: new Date().toISOString()
+        });
+      }
+
+      closeModal('modalSubjectSettings');
+      saveToLocal();
+      renderAll();
+      showToast('บันทึกการตั้งค่ารายวิชาและห้องเรียนเรียบร้อยแล้ว', 'success');
+    }
+
+    function openUnitModal(unitId = '') {
+      if (!requireOwnerPermission()) return;
+      document.getElementById('unitFormId').value = unitId;
+      if (unitId) {
+        const u = appData.units.find(x => x.unit_id === unitId);
+        if (!u) return;
+        document.getElementById('unitNameInput').value = u.unit_name;
+        document.getElementById('unitTypeInput').value = u.unit_type || 'formative';
+        document.getElementById('unitMaxRawInput').value = u.max_raw_score;
+        document.getElementById('unitWeightInput').value = u.weight_score || u.max_raw_score;
+      } else {
+        const nextNum = getClassUnits().length + 1;
+        document.getElementById('unitNameInput').value = `หน่วยที่ ${nextNum}`;
+        document.getElementById('unitTypeInput').value = 'formative';
+        document.getElementById('unitMaxRawInput').value = 20;
+        document.getElementById('unitWeightInput').value = 20;
+      }
+      openModal('modalUnitForm');
+    }
+
+    function syncWeightInputIfNeeded() {
+      const unitId = document.getElementById('unitFormId').value;
+      if (!unitId) {
+        document.getElementById('unitWeightInput').value = document.getElementById('unitMaxRawInput').value;
+      }
+    }
+
+    function handleSaveUnit(e) {
+      e.preventDefault();
+      const unitId = document.getElementById('unitFormId').value;
+      const unit_name = document.getElementById('unitNameInput').value.trim();
+      const unit_type = document.getElementById('unitTypeInput').value;
+      const max_raw_score = Number(document.getElementById('unitMaxRawInput').value) || 10;
+      const weight_score = Number(document.getElementById('unitWeightInput').value) || max_raw_score;
+
+      if (unitId) {
+        const u = appData.units.find(x => x.unit_id === unitId);
+        if (u) {
+          Object.assign(u, { unit_name, unit_type, max_raw_score, weight_score });
+        }
+        showToast(`อัปเดต "${unit_name}" เรียบร้อยแล้ว`, 'success');
+      } else {
+        const currentUnits = getClassUnits();
+        appData.units.push({
+          unit_id: 'u_' + Date.now(),
+          class_id: appData.activeClassId,
+          unit_order: currentUnits.length + 1,
+          unit_type,
+          unit_name,
+          max_raw_score,
+          weight_score
+        });
+        showToast(`เพิ่มหน่วยเก็บคะแนน "${unit_name}" (เต็ม ${max_raw_score}) เรียบร้อยแล้ว`, 'success');
+      }
+
+      closeModal('modalUnitForm');
+      saveToLocal();
+      renderAll();
+    }
+
+    function deleteUnit(unitId) {
+      if (!requireOwnerPermission()) return;
+      const u = appData.units.find(x => x.unit_id === unitId);
+      if (!u) return;
+      if (!confirm(`ต้องการลบหน่วย "${u.unit_name}" และคะแนนในหน่วยนี้ใช่หรือไม่?`)) return;
+
+      appData.units = appData.units.filter(x => x.unit_id !== unitId);
+      appData.scores = appData.scores.filter(sc => sc.unit_id !== unitId);
+      appData.activities = (appData.activities || []).filter(a => a.unit_id !== unitId);
+      appData.activityScores = (appData.activityScores || []).filter(as => as.unit_id !== unitId);
+      saveToLocal();
+      renderAll();
+      showToast('ลบหน่วยเก็บคะแนนเรียบร้อยแล้ว', 'info');
+    }
+
+    // ---------------------------------------------------------------------------
+    // 6.5 UNIT SUB-ACTIVITIES GRADEBOOK (หน้าต่างเก็บคะแนนรายกิจกรรมของแต่ละหน่วย)
+    // ---------------------------------------------------------------------------
+    function getUnitActivities(unitId) {
+      return (appData.activities || [])
+        .filter(a => a.unit_id === unitId)
+        .sort((a, b) => Number(a.activity_order) - Number(b.activity_order));
+    }
+
+    function getStudentActivityScoreValue(studentId, activityId) {
+      const item = (appData.activityScores || []).find(s => s.student_id === studentId && s.activity_id === activityId);
+      return item && item.score_value !== '' && item.score_value !== null && item.score_value !== undefined
+        ? item.score_value
+        : '';
+    }
+
+    function setStudentActivityScoreValue(studentId, unitId, activityId, rawVal) {
+      if (!Array.isArray(appData.activityScores)) appData.activityScores = [];
+      const classId = appData.activeClassId;
+      const existing = appData.activityScores.find(s => s.student_id === studentId && s.activity_id === activityId);
+      const val = rawVal === '' ? '' : Number(rawVal);
+
+      if (existing) {
+        existing.score_value = val;
+        existing.updated_at = new Date().toISOString();
+      } else {
+        appData.activityScores.push({
+          act_score_id: `asc_${studentId}_${activityId}`,
+          class_id: classId,
+          unit_id: unitId,
+          activity_id: activityId,
+          student_id: studentId,
+          score_value: val,
+          updated_at: new Date().toISOString()
+        });
+      }
+
+      recalculateUnitScoreFromActivities(unitId, studentId);
+    }
+
+    function recalculateUnitScoreFromActivities(unitId, specificStudentId = null) {
+      const unit = appData.units.find(u => u.unit_id === unitId);
+      if (!unit) return;
+      const acts = getUnitActivities(unitId);
+      if (acts.length === 0) return;
+
+      const calcMode = unit.activity_calc_mode || 'scale_unit';
+      const totalActMax = acts.reduce((acc, a) => acc + Number(a.max_score || 0), 0);
+
+      if (calcMode === 'sum_sync_max' && totalActMax > 0) {
+        unit.max_raw_score = totalActMax;
+      }
+
+      const unitMax = Number(unit.max_raw_score || 0);
+      const targetStudents = specificStudentId
+        ? appData.students.filter(s => s.student_id === specificStudentId)
+        : getClassStudents(unit.class_id);
+
+      targetStudents.forEach(st => {
+        let actSum = 0;
+        let hasAnyScore = false;
+        acts.forEach(a => {
+          const v = getStudentActivityScoreValue(st.student_id, a.activity_id);
+          if (v !== '' && !isNaN(Number(v))) {
+            actSum += Number(v);
+            hasAnyScore = true;
+          }
+        });
+
+        if (!hasAnyScore) {
+          setStudentScoreValue(st.student_id, unitId, '');
+        } else {
+          let finalUnitScore = actSum;
+          if (calcMode === 'scale_unit' && totalActMax > 0) {
+            finalUnitScore = Number(((actSum / totalActMax) * unitMax).toFixed(2));
+          } else {
+            finalUnitScore = Number(actSum.toFixed(2));
+          }
+          setStudentScoreValue(st.student_id, unitId, finalUnitScore);
+        }
+      });
+
+      saveToLocal();
+    }
+
+    function openUnitActivitiesModal(unitId) {
+      currentActivityUnitId = unitId;
+      const unit = appData.units.find(u => u.unit_id === unitId);
+      if (!unit) return;
+
+      if (!unit.activity_calc_mode) {
+        unit.activity_calc_mode = 'scale_unit';
+      }
+
+      renderUnitActivitiesModalContent();
+      openModal('modalUnitActivities');
+      lucide.createIcons();
+    }
+
+    function handleChangeUnitActivityCalcMode(mode) {
+      if (!requireOwnerPermission()) { renderUnitActivitiesModalContent(); return; }
+      const unit = appData.units.find(u => u.unit_id === currentActivityUnitId);
+      if (!unit) return;
+      unit.activity_calc_mode = mode;
+      recalculateUnitScoreFromActivities(currentActivityUnitId);
+      renderUnitActivitiesModalContent();
+      renderAll();
+      showToast('อัปเดตวิธีคำนวณคะแนนกิจกรรมเข้าสู่คะแนนหน่วยเรียบร้อยแล้ว', 'success');
+    }
+
+    function handleAddActivity(e) {
+      e.preventDefault();
+      if (!requireOwnerPermission()) return;
+      if (!currentActivityUnitId) return;
+      const nameInput = document.getElementById('newActivityNameInput');
+      const maxInput = document.getElementById('newActivityMaxInput');
+      const activity_name = nameInput.value.trim();
+      const max_score = Number(maxInput.value) || 10;
+      if (!activity_name) return;
+
+      const currentActs = getUnitActivities(currentActivityUnitId);
+      if (!Array.isArray(appData.activities)) appData.activities = [];
+
+      appData.activities.push({
+        activity_id: 'act_' + Date.now() + '_' + Math.random().toString(36).substring(2, 5),
+        class_id: appData.activeClassId,
+        unit_id: currentActivityUnitId,
+        activity_order: currentActs.length + 1,
+        activity_name,
+        max_score
+      });
+
+      nameInput.value = '';
+      recalculateUnitScoreFromActivities(currentActivityUnitId);
+      renderUnitActivitiesModalContent();
+      renderAll();
+      showToast(`เพิ่มกิจกรรม "${activity_name}" (เต็ม ${max_score}) เรียบร้อยแล้ว`, 'success');
+    }
+
+    function updateActivityField(activityId, field, value) {
+      if (!requireOwnerPermission()) { renderUnitActivitiesModalContent(); return; }
+      const act = (appData.activities || []).find(a => a.activity_id === activityId);
+      if (!act) return;
+      if (field === 'max_score') {
+        act.max_score = Math.max(1, Number(value) || 1);
+      } else {
+        act.activity_name = String(value).trim() || act.activity_name;
+      }
+      recalculateUnitScoreFromActivities(currentActivityUnitId);
+      renderUnitActivitiesModalContent();
+      renderAll();
+      showToast('อัปเดตข้อมูลกิจกรรมย่อยเรียบร้อยแล้ว', 'success');
+    }
+
+    function deleteActivity(activityId) {
+      if (!requireOwnerPermission()) return;
+      const act = (appData.activities || []).find(a => a.activity_id === activityId);
+      if (!act) return;
+      if (!confirm(`ต้องการลบกิจกรรม "${act.activity_name}" และคะแนนในกิจกรรมนี้ใช่หรือไม่?`)) return;
+
+      appData.activities = appData.activities.filter(a => a.activity_id !== activityId);
+      appData.activityScores = (appData.activityScores || []).filter(as => as.activity_id !== activityId);
+      recalculateUnitScoreFromActivities(currentActivityUnitId);
+      renderUnitActivitiesModalContent();
+      renderAll();
+      showToast('ลบกิจกรรมย่อยแล้ว', 'info');
+    }
+
+    function renderUnitActivitiesModalContent() {
+      const unit = appData.units.find(u => u.unit_id === currentActivityUnitId);
+      if (!unit) return;
+      const cls = getCurrentClass();
+      const students = getClassStudents();
+      const acts = getUnitActivities(unit.unit_id);
+      const totalActMax = acts.reduce((acc, a) => acc + Number(a.max_score || 0), 0);
+
+      document.getElementById('actModalUnitTitle').textContent = `${unit.unit_name} — ตารางเก็บคะแนนรายกิจกรรมย่อย`;
+      document.getElementById('actModalUnitBadge').textContent = `คะแนนเต็มหน่วย ${unit.max_raw_score} คะแนน`;
+      document.getElementById('actModalSubtitle').textContent = `ชั้น ${cls.grade_level} ${cls.room_name} • มีทั้งหมด ${acts.length} กิจกรรมย่อย (คะแนนเต็มกิจกรรมรวม ${totalActMax} คะแนน)`;
+      document.getElementById('unitActivityCalcModeSelect').value = unit.activity_calc_mode || 'scale_unit';
+
+      // Suggest next activity name placeholder
+      document.getElementById('newActivityNameInput').placeholder = `เช่น กิจกรรมที่ ${acts.length + 1}, ใบงาน, ทดสอบย่อย...`;
+
+      // Pills bar for managing activities
+      const pillsBar = document.getElementById('unitActivitiesPillsBar');
+      if (acts.length === 0) {
+        pillsBar.innerHTML = `<span class="text-xs text-slate-400 py-1">ยังไม่มีกิจกรรมย่อยในหน่วยนี้ กรุณาพิมพ์ชื่อกิจกรรมและคะแนนเต็มด้านบนแล้วกด "+ เพิ่มกิจกรรม"</span>`;
+      } else {
+        pillsBar.innerHTML = acts.map((a, idx) => `
+          <div class="inline-flex items-center gap-1.5 px-3 py-1 rounded-xl bg-slate-100 border border-slate-200 text-xs shrink-0">
+            <span class="font-bold text-brand-700">${idx + 1}.</span>
+            <input type="text" value="${escapeHtml(a.activity_name)}" onchange="updateActivityField('${a.activity_id}', 'activity_name', this.value)"
+              class="bg-transparent font-semibold text-slate-800 focus:bg-white focus:px-1 rounded w-36 truncate focus:w-44 focus:outline-none" title="คลิกเพื่อแก้ชื่อกิจกรรม" />
+            <span class="text-slate-400">เต็ม</span>
+            <input type="number" min="1" step="any" value="${a.max_score}" onchange="updateActivityField('${a.activity_id}', 'max_score', this.value)"
+              class="w-12 text-center bg-white rounded border border-slate-300 font-bold text-amber-700 py-0.5" title="แก้ไขคะแนนเต็มกิจกรรมนี้" />
+            <button type="button" onclick="deleteActivity('${a.activity_id}')" class="text-slate-400 hover:text-rose-600 ml-0.5" title="ลบกิจกรรมนี้">
+              <i data-lucide="trash-2" class="w-3.5 h-3.5"></i>
+            </button>
+          </div>
+        `).join('');
+      }
+
+      // Render THEAD
+      const thead = document.getElementById('activityModalThead');
+      const actHeaders = acts.map((a, idx) => `
+        <th class="py-3 px-2.5 text-center border-l border-slate-700 min-w-[130px] bg-slate-700">
+          <div class="flex flex-col items-center gap-0.5">
+            <span class="font-bold text-white line-clamp-1" title="${escapeHtml(a.activity_name)}">${idx + 1}. ${escapeHtml(a.activity_name)}</span>
+            <span class="inline-block px-2 py-0.5 rounded bg-black/25 text-amber-300 text-[11px] font-semibold">เต็ม ${a.max_score}</span>
+          </div>
+        </th>
+      `).join('');
+
+      thead.innerHTML = `
+        <tr>
+          <th class="py-3 px-1 text-center bg-slate-900 sticky-col-no">เลขที่</th>
+          <th class="py-3 px-2.5 text-left bg-slate-900 sticky-col-name">ชื่อ - นามสกุล</th>
+          ${actHeaders}
+          <th class="py-3 px-3 text-center bg-slate-800 border-l border-slate-700 min-w-[115px]">
+            <div>รวมกิจกรรมย่อย</div>
+            <div class="text-[11px] text-slate-300 font-normal">(เต็ม ${totalActMax})</div>
+          </th>
+          <th class="py-3 px-3 text-center bg-brand-700 border-l border-brand-600 min-w-[135px]">
+            <div class="text-amber-300 font-bold">คะแนนสุทธิหน่วยนี้</div>
+            <div class="text-[11px] text-white font-semibold">(เต็ม ${unit.max_raw_score})</div>
+          </th>
+        </tr>
+      `;
+
+      // Render TBODY
+      const tbody = document.getElementById('activityModalTbody');
+      if (acts.length === 0) {
+        tbody.innerHTML = `
+          <tr>
+            <td colspan="4" class="py-12 text-center text-slate-500">
+              <div class="flex flex-col items-center gap-2">
+                <p class="font-semibold text-slate-700">หน่วยนี้ยังไม่มีรายการกิจกรรมย่อย</p>
+                <p class="text-xs text-slate-400">พิมพ์ชื่อกิจกรรมและกำหนดคะแนนเต็มที่แถบด้านบน แล้วกดปุ่ม <strong>"+ เพิ่มกิจกรรม"</strong> เพื่อเริ่มกรอกคะแนนรายกิจกรรม</p>
+              </div>
+            </td>
+          </tr>
+        `;
+        document.getElementById('activityModalTfoot').innerHTML = '';
+        lucide.createIcons();
+        return;
+      }
+
+      tbody.innerHTML = students.map((st, rowIdx) => {
+        const fullName = `${st.prefix || ''}${st.first_name || ''} ${st.last_name || ''}`.trim();
+        const rowBg = rowIdx % 2 === 0 ? 'bg-white' : 'bg-slate-50/80';
+
+        let actRawSum = 0;
+        const actCells = acts.map((a, colIdx) => {
+          const val = getStudentActivityScoreValue(st.student_id, a.activity_id);
+          if (val !== '' && !isNaN(Number(val))) actRawSum += Number(val);
+          const maxAct = Number(a.max_score || 0);
+          const canEdit = isCurrentUserAuthorized();
+
+          return `
+            <td class="p-1.5 text-center border-l border-slate-200">
+              <input
+                type="number"
+                step="any"
+                min="0"
+                max="${maxAct}"
+                data-actrow="${rowIdx}"
+                data-actcol="${colIdx}"
+                data-student="${st.student_id}"
+                data-unit="${unit.unit_id}"
+                data-activity="${a.activity_id}"
+                data-max="${maxAct}"
+                value="${val}"
+                placeholder="-"
+                ${canEdit ? '' : 'readonly onclick="requireOwnerPermission()"'}
+                oninput="handleActivityScoreCellInput(this)"
+                onkeydown="handleActivityScoreCellKeydown(event, ${rowIdx}, ${colIdx})"
+                class="act-score-input w-20 px-2 py-1.5 text-center rounded-lg border ${!canEdit ? 'bg-slate-100 text-slate-500 cursor-not-allowed border-slate-200' : 'border-slate-200 bg-slate-50/70 focus:bg-white focus:border-brand-500'} font-semibold text-slate-800 focus:outline-none focus:ring-2 focus:ring-brand-500/30 transition"
+              />
+            </td>
+          `;
+        }).join('');
+
+        const unitScoreVal = getStudentScoreValue(st.student_id, unit.unit_id);
+        const unitScoreDisplay = unitScoreVal !== '' ? Number(unitScoreVal).toFixed(2) : '-';
+
+        return `
+          <tr class="${rowBg} hover:bg-blue-50/50 transition">
+            <td class="py-2.5 px-1 text-center font-bold text-slate-700 ${rowBg} sticky-col-no">${st.student_no}</td>
+            <td class="py-2.5 px-2.5 font-medium text-slate-800 ${rowBg} sticky-col-name truncate" title="${escapeHtml(fullName)}">${escapeHtml(fullName)}</td>
+            ${actCells}
+            <td id="actRawSumCell_${st.student_id}" class="py-2.5 px-3 text-center font-semibold text-slate-700 border-l border-slate-200 bg-slate-100/60">
+              ${formatScoreNum(actRawSum)} <span class="text-[11px] text-slate-400 font-normal">/ ${totalActMax}</span>
+            </td>
+            <td id="actUnitNetCell_${st.student_id}" class="py-2.5 px-3 text-center font-bold text-base text-brand-700 border-l border-blue-200 bg-blue-50/60">
+              ${unitScoreDisplay}
+            </td>
+          </tr>
+        `;
+      }).join('');
+
+      renderActivityModalFooter(students, acts, unit, totalActMax);
+      lucide.createIcons();
+    }
+
+    function renderActivityModalFooter(students, acts, unit, totalActMax) {
+      const tfoot = document.getElementById('activityModalTfoot');
+      if (students.length === 0 || acts.length === 0) {
+        tfoot.innerHTML = '';
+        return;
+      }
+
+      const avgActCells = acts.map(a => {
+        const vals = students.map(s => {
+          const v = getStudentActivityScoreValue(s.student_id, a.activity_id);
+          return v !== '' && !isNaN(Number(v)) ? Number(v) : 0;
+        });
+        const avg = vals.reduce((x, y) => x + y, 0) / students.length;
+        return `<td class="py-2.5 px-2 text-center border-l border-slate-300">${avg.toFixed(2)}</td>`;
+      }).join('');
+
+      const unitVals = students.map(s => {
+        const v = getStudentScoreValue(s.student_id, unit.unit_id);
+        return v !== '' && !isNaN(Number(v)) ? Number(v) : 0;
+      });
+      const avgUnit = unitVals.reduce((x, y) => x + y, 0) / students.length;
+
+      tfoot.innerHTML = `
+        <tr>
+          <td colspan="2" class="py-2.5 px-4 text-right font-bold text-slate-700">ค่าเฉลี่ยรายกิจกรรม (${students.length} คน):</td>
+          ${avgActCells}
+          <td class="py-2.5 px-3 text-center border-l border-slate-300">-</td>
+          <td class="py-2.5 px-3 text-center font-bold text-brand-800 bg-blue-100/70 border-l border-blue-300">${avgUnit.toFixed(2)} / ${unit.max_raw_score}</td>
+        </tr>
+      `;
+    }
+
+    function handleActivityScoreCellInput(inputEl) {
+      if (!requireOwnerPermission()) return;
+      const studentId = inputEl.dataset.student;
+      const unitId = inputEl.dataset.unit;
+      const activityId = inputEl.dataset.activity;
+      const maxScore = Number(inputEl.dataset.max || 100);
+      let rawVal = inputEl.value;
+
+      if (rawVal !== '' && Number(rawVal) > maxScore) {
+        showToast(`คะแนนเกินคะแนนเต็มของกิจกรรมนี้ (เต็ม ${maxScore})`, 'warning');
+        inputEl.value = maxScore;
+        rawVal = String(maxScore);
+      }
+      if (rawVal !== '' && Number(rawVal) < 0) {
+        inputEl.value = 0;
+        rawVal = '0';
+      }
+
+      setStudentActivityScoreValue(studentId, unitId, activityId, rawVal);
+
+      const unit = appData.units.find(u => u.unit_id === unitId);
+      const acts = getUnitActivities(unitId);
+      const totalActMax = acts.reduce((acc, a) => acc + Number(a.max_score || 0), 0);
+
+      let actRawSum = 0;
+      acts.forEach(a => {
+        const v = getStudentActivityScoreValue(studentId, a.activity_id);
+        if (v !== '' && !isNaN(Number(v))) actRawSum += Number(v);
+      });
+
+      const rawSumCell = document.getElementById(`actRawSumCell_${studentId}`);
+      const unitNetCell = document.getElementById(`actUnitNetCell_${studentId}`);
+      const unitScoreVal = getStudentScoreValue(studentId, unitId);
+
+      if (rawSumCell) {
+        rawSumCell.innerHTML = `${formatScoreNum(actRawSum)} <span class="text-[11px] text-slate-400 font-normal">/ ${totalActMax}</span>`;
+      }
+      if (unitNetCell) {
+        unitNetCell.textContent = unitScoreVal !== '' ? Number(unitScoreVal).toFixed(2) : '-';
+      }
+
+      renderActivityModalFooter(getClassStudents(), acts, unit, totalActMax);
+      renderSummaryStats();
+      renderGradebookTable();
+      renderUnitsManager();
+    }
+
+    function handleActivityScoreCellKeydown(e, rowIdx, colIdx) {
+      let targetRow = rowIdx;
+      let targetCol = colIdx;
+
+      if (e.key === 'Enter' || e.key === 'ArrowDown') {
+        e.preventDefault();
+        targetRow = rowIdx + 1;
+      } else if (e.key === 'ArrowUp') {
+        e.preventDefault();
+        targetRow = rowIdx - 1;
+      } else {
+        return;
+      }
+
+      const nextInput = document.querySelector(`input.act-score-input[data-actrow="${targetRow}"][data-actcol="${targetCol}"]`);
+      if (nextInput) {
+        nextInput.focus();
+        nextInput.select();
+      }
+    }
+
+    function exportCurrentUnitActivitiesCSV() {
+      const unit = appData.units.find(u => u.unit_id === currentActivityUnitId);
+      if (!unit) return;
+      const cls = getCurrentClass();
+      const students = getClassStudents();
+      const acts = getUnitActivities(unit.unit_id);
+
+      const headers = ['เลขที่', 'ชื่อ-นามสกุล'];
+      acts.forEach(a => headers.push(`${a.activity_name} (เต็ม ${a.max_score})`));
+      headers.push(`คะแนนสุทธิหน่วย (${unit.unit_name} เต็ม ${unit.max_raw_score})`);
+
+      const rows = [headers];
+      students.forEach(st => {
+        const fullName = `${st.prefix || ''}${st.first_name || ''} ${st.last_name || ''}`.trim();
+        const row = [st.student_no, fullName];
+        acts.forEach(a => {
+          row.push(getStudentActivityScoreValue(st.student_id, a.activity_id));
+        });
+        row.push(getStudentScoreValue(st.student_id, unit.unit_id));
+        rows.push(row);
+      });
+
+      const csvContent = '\uFEFF' + rows.map(r => r.map(cell => `"${String(cell).replace(/"/g, '""')}"`).join(',')).join('\r\n');
+      const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+      const link = document.createElement('a');
+      link.href = URL.createObjectURL(blob);
+      link.download = `คะแนนกิจกรรม_${unit.unit_name}_${cls.grade_level}_${cls.room_name}.csv`;
+      link.click();
+      showToast('ดาวน์โหลดไฟล์ CSV คะแนนรายกิจกรรมของหน่วยนี้เรียบร้อยแล้ว', 'success');
+    }
+
+    // ---------------------------------------------------------------------------
+    // 7. GOOGLE SHEETS SYNC & CSV EXPORT
+    // ---------------------------------------------------------------------------
+    async function syncWithGoogleSheets(direction = 'push') {
+      const url = getActiveGasUrl();
+      if (!url) {
+        showToast('กรุณาใส่ลิงก์ Web App URL ในตัวแปร DEFAULT_GAS_WEBAPP_URL ในไฟล์ index.html ก่อนใช้งานซิงค์ข้อมูล', 'warning');
+        return;
+      }
+
+      if (direction === 'pull') {
+        const progressBar = document.getElementById('loadingProgressBar');
+        const progressTitle = document.getElementById('loadingProgressTitle');
+        const progressSub = document.getElementById('loadingProgressSub');
+        if (progressBar) progressBar.style.width = '35%';
+        if (progressTitle) progressTitle.textContent = 'กำลังดึงข้อมูลคะแนนล่าสุด...';
+        if (progressSub) progressSub.textContent = 'กำลังเชื่อมต่อฐานข้อมูล Google Sheets กรุณารอสักครู่';
+        openModal('modalLoadingProgress');
+        lucide.createIcons();
+
+        updateSyncBadge('syncing', 'กำลังดึงข้อมูลจาก Google Sheets...');
+        try {
+          if (progressBar) progressBar.style.width = '75%';
+          const res = await fetch(`${url}?action=loadAll`);
+          const json = await res.json();
+          if (json.status === 'ok' && json.data) {
+            if (progressBar) progressBar.style.width = '100%';
+            const remoteTeacherName = json.teacherDisplayName || (json.data && json.data.teacherDisplayName);
+            if (remoteTeacherName) {
+              appData.teacherDisplayName = String(remoteTeacherName).trim();
+            }
+            if (json.data.ownerSettings && json.data.ownerSettings.owner_email) {
+              appData.ownerSettings = Object.assign(appData.ownerSettings || {}, json.data.ownerSettings);
+            }
+            if (Array.isArray(json.data.classes) && json.data.classes.length > 0) {
+              const keepClass = json.data.classes[0];
+              const keepClassId = keepClass.class_id;
+              appData.classes = [keepClass];
+              appData.subjectConfig = {
+                subject_code: keepClass.subject_code || 'อ23102',
+                subject_name: keepClass.subject_name || 'ภาษาอังกฤษพื้นฐาน',
+                grade_level: keepClass.grade_level || 'ม.3',
+                room_name: keepClass.room_name || 'ห้อง 1 (ม.3/1)',
+                semester: String(keepClass.semester || '2'),
+                academic_year: String(keepClass.academic_year || '2569')
+              };
+              appData.students = (json.data.students || []).filter(s => s.class_id === keepClassId);
+              appData.units = (json.data.units || []).filter(u => u.class_id === keepClassId);
+              appData.scores = (json.data.scores || []).filter(sc => sc.class_id === keepClassId);
+              appData.activities = (json.data.activities || []).filter(a => a.class_id === keepClassId);
+              appData.activityScores = (json.data.activityScores || []).filter(as => as.class_id === keepClassId);
+              appData.activeClassId = keepClassId;
+              saveToLocal();
+              renderAll();
+              updateSyncBadge('synced', 'ดึงข้อมูลจาก Google Sheets แล้ว');
+            }
+          }
+        } catch (err) {
+          updateSyncBadge('error');
+          showToast('ไม่สามารถดึงข้อมูลจาก Google Sheets ได้ กรุณาตรวจสอบสิทธิ์ Web App (Anyone)', 'warning');
+        } finally {
+          setTimeout(() => {
+            closeModal('modalLoadingProgress');
+          }, 250);
+        }
+        return;
+      }
+
+      if (!requireOwnerPermission()) return;
+
+      // PUSH ALL DATA + GENERATE SUMMARY SHEET FOR CURRENT CLASS
+      updateSyncBadge('syncing', 'กำลังบันทึกลง Google Sheets...');
+      try {
+        await fetch(url, {
+          method: 'POST',
+          mode: 'no-cors',
+          headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+          body: JSON.stringify({
+            action: 'syncAll',
+            username: currentSessionUser.username || '',
+            password: currentSessionUser.password || '',
+            generateReportForClassId: appData.activeClassId,
+            data: {
+              classes: appData.classes,
+              students: appData.students,
+              units: appData.units,
+              scores: appData.scores,
+              activities: appData.activities || [],
+              activityScores: appData.activityScores || []
+            }
+          })
+        });
+        updateSyncBadge('synced', 'บันทึกลง Google Sheets เรียบร้อยแล้ว');
+        showToast('ส่งข้อมูลทั้งหมดและสร้างตารางสรุปรายห้องลง Google Sheets เรียบร้อยแล้ว!', 'success');
+      } catch (err) {
+        updateSyncBadge('error');
+        showToast('เกิดข้อผิดพลาดในการส่งข้อมูลไป Google Sheets', 'warning');
+      }
+    }
+
+    async function exportSummaryToGoogleSheetTab() {
+      await syncWithGoogleSheets('push');
+    }
+
+    function exportCurrentClassCSV() {
+      const cls = getCurrentClass();
+      const students = getClassStudents();
+      const units = getClassUnits();
+
+      const headers = ['เลขที่', 'ชื่อ-นามสกุล'];
+      units.forEach(u => headers.push(`${u.unit_name} (เต็ม ${u.max_raw_score})`));
+      headers.push('คะแนนดิบรวม', 'คะแนนสุทธิ (เต็ม 100)', 'เกรดที่ได้');
+
+      const rows = [headers];
+      students.forEach(st => {
+        const fullName = `${st.prefix || ''}${st.first_name || ''} ${st.last_name || ''}`.trim();
+        const summary = calculateStudentSummary(st.student_id, units, cls.scoring_mode);
+        const row = [st.student_no, fullName];
+
+        units.forEach(u => {
+          row.push(getStudentScoreValue(st.student_id, u.unit_id));
+        });
+
+        row.push(summary.rawSum.toFixed(2), summary.net100.toFixed(2), summary.grade);
+        rows.push(row);
+      });
+
+      const csvContent = '\uFEFF' + rows.map(r => r.map(cell => `"${String(cell).replace(/"/g, '""')}"`).join(',')).join('\r\n');
+      const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+      const link = document.createElement('a');
+      link.href = URL.createObjectURL(blob);
+      link.download = `ปพ5_${cls.grade_level}_${cls.room_name}_${cls.subject_name}.csv`;
+      link.click();
+      showToast('ดาวน์โหลดไฟล์ CSV (เปิดใน Excel / Google Sheets ได้ทันที) เรียบร้อยแล้ว', 'success');
+    }
+
+    async function copyGasScriptCode() {
+      try {
+        const res = await fetch('google-apps-script.js');
+        const text = await res.text();
+        await navigator.clipboard.writeText(text);
+        showToast('คัดลอกโค้ด Google Apps Script ลงคลิปบอร์ดแล้ว!', 'success');
+      } catch (e) {
+        showToast('คุณสามารถเปิดคัดลอกจากไฟล์ google-apps-script.js ในโฟลเดอร์โปรเจกต์ได้โดยตรง', 'info');
+      }
+    }
+
+    // ---------------------------------------------------------------------------
+    // 8. UI UTILITIES (TABS, MODALS, TOASTS)
+    // ---------------------------------------------------------------------------
+    function switchTab(tabName) {
+      appData.activeTab = tabName;
+      ['gradebook', 'units', 'students'].forEach(t => {
+        const content = document.getElementById(`tabContent-${t}`);
+        const btn = document.getElementById(`tabBtn-${t}`);
+        if (t === tabName) {
+          content.classList.remove('hidden');
+          btn.className = 'tab-btn inline-flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-semibold transition bg-brand-600 text-white shadow-sm';
+        } else {
+          content.classList.add('hidden');
+          btn.className = 'tab-btn inline-flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-semibold transition text-slate-600 hover:bg-slate-100';
+        }
+      });
+    }
+
+    function openModal(id) {
+      const el = document.getElementById(id);
+      if (el) {
+        el.classList.remove('hidden');
+        el.classList.add('flex');
+      }
+    }
+
+    function closeModal(id) {
+      const el = document.getElementById(id);
+      if (el) {
+        el.classList.add('hidden');
+        el.classList.remove('flex');
+      }
+    }
+
+    function showToast(message, type = 'info') {
+      const container = document.getElementById('toastContainer');
+      const colors = {
+        success: 'bg-emerald-600 text-white',
+        warning: 'bg-amber-500 text-slate-950',
+        info: 'bg-slate-800 text-white'
+      };
+      const toast = document.createElement('div');
+      toast.className = `pointer-events-auto px-4 py-3 rounded-xl shadow-lg text-xs sm:text-sm font-semibold flex items-center gap-2 transition-all duration-300 ${colors[type] || colors.info}`;
+      toast.innerHTML = `<span>${escapeHtml(message)}</span>`;
+      container.appendChild(toast);
+      setTimeout(() => {
+        toast.classList.add('opacity-0', 'translate-y-2');
+        setTimeout(() => toast.remove(), 300);
+      }, 3200);
+    }
+
+    function formatScoreNum(n) {
+      return Number.isInteger(n) ? String(n) : n.toFixed(1);
+    }
+
+    function escapeHtml(str) {
+      return String(str || '')
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;');
+    }
+
+    window.addEventListener('DOMContentLoaded', initApp);
+  </script>
+</body>
+</html>
